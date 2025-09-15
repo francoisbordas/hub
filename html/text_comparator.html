@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Comparateur de textes — MT4A</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style/text_comparator.css">
+</head>
+<body>
+  <div class="site">
+    <div class="header-box">
+      <div class="title-row">
+        <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+        <h1>Comparateur de textes</h1>
+      </div>
+      <p class="header-info">Topbar pour les paramètres ; dessous la zone divisée : gauche = textes, droite = résultats + comparaison.</p>
+    </div>
+
+    <!-- TOPBAR: full width controls -->
+    <div class="topbar" role="toolbar" aria-label="Barre de paramètres">
+      <div class="group param-card" aria-hidden="false">
+        <label class="file-btn" title="Charger Fichier 1">
+          📁 Choisir Fichier 1
+          <input id="file1_top" class="file-input" type="file" accept=".txt" />
+        </label>
+        <label class="file-btn secondary" title="Charger Fichier 2">
+          📂 Choisir Fichier 2
+          <input id="file2_top" class="file-input" type="file" accept=".txt" />
+        </label>
+        <button id="autoToggleTop" class="ghost" title="Activer / désactiver l'auto-compare">Auto: ON</button>
+      </div>
+
+      <div class="group param-card">
+        <button id="compareBtnTop" class="action-btn" title="Comparer maintenant">Comparer</button>
+        <button id="copyBtnTop" class="file-btn" title="Copier le résumé">Copier diff</button>
+        <button id="downloadBtnTop" class="file-btn secondary" title="Télécharger le résumé">Télécharger diff</button>
+        <button id="resetBtnTop" class="ghost" title="Réinitialiser">Réinitialiser</button>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+      <!-- LEFT: stacked editors -->
+      <div class="left-col">
+        <div class="editor-card">
+          <div class="editor-title">
+            <h3>Fichier 1</h3>
+            <label class="file-btn secondary" title="Charger Fichier 1">
+              Choisir fichier
+              <input id="file1" class="file-input" type="file" accept=".txt" />
+            </label>
+          </div>
+          <textarea id="ta1" class="textarea" placeholder="Colle ou tape le contenu de Fichier1.txt ici..." spellcheck="false"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="small">Lignes: <span id="len1">0</span></div>
+            <div class="small">—</div>
+          </div>
+        </div>
+
+        <div class="editor-card">
+          <div class="editor-title">
+            <h3>Fichier 2</h3>
+            <label class="file-btn secondary" title="Charger Fichier 2">
+              Choisir fichier
+              <input id="file2" class="file-input" type="file" accept=".txt" />
+            </label>
+          </div>
+          <textarea id="ta2" class="textarea" placeholder="Colle ou tape le contenu de Fichier2.txt ici..." spellcheck="false"></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="small">Lignes: <span id="len2">0</span></div>
+            <div class="small">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: results (top) + comparison (bottom) -->
+      <div class="right-col">
+        <div class="results-card" role="region" aria-label="Résultats">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div class="badge" id="totalLines">Lignes : 0 / 0</div>
+              <div class="badge strong" id="diffCount">Différences : 0</div>
+            </div>
+            <div class="small">Clique sur une différence dans la liste pour y aller</div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div class="small">Différences (ligne) :</div>
+            <div class="diff-list" id="diffList" aria-live="polite">—</div>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">
+            <div class="small">Actions :</div>
+            <button id="copyDiff" class="file-btn">Copier le résumé</button>
+            <button id="downloadDiff" class="file-btn secondary">Télécharger .txt</button>
+          </div>
+        </div>
+
+        <div class="compare-card" role="region" aria-label="Comparaison">
+          <div class="small" style="margin-bottom:8px">Vue côte-à-côte (les lignes différentes sont surlignées)</div>
+          <div class="compare-views" id="compareViews">
+            <div class="col" id="col1" aria-label="Vue Fichier 1"></div>
+            <div class="col" id="col2" aria-label="Vue Fichier 2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">François Bordas — Comparateur de lignes — MT4A</div>
+  </div>
+
+<script src="../javascript/text_comparator.js"></script>
+</body>
+
+</html>

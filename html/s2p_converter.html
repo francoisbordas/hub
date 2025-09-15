@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>S2P → TXT Converter — RF tools</title>
+  <link rel="stylesheet" href="../style/s2p_converter.css">
+</head>
+<body data-theme="dark">
+  <div class="app">
+
+    <header class="topbar">
+      <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+      <div class="branding">
+        <h1>S2P → TXT Converter</h1>
+        <div class="subtitle">Colle ton .s2p, choisis S-parameter, convertis en "freq(Hz) Sxx(dB)".</div>
+      </div>
+
+      <div class="top-controls" role="region" aria-label="Paramètres de conversion">
+        <div class="control-group">
+          <label for="unitSelect">Unités du S2P:</label>
+          <select id="unitSelect">
+            <option value="MHz" selected>MHz</option>
+            <option value="GHz">GHz</option>
+            <option value="Hz">Hz</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="paramSelect">Paramètre :</label>
+          <select id="paramSelect">
+            <option value="S11">S11</option>
+            <option value="S21" selected>S21</option>
+            <option value="S12">S12</option>
+            <option value="S22">S22</option>
+          </select>
+        </div>
+
+        <div class="control-group mini">
+          <label for="outputFreqLabel">Label freq :</label>
+          <input id="outputFreqLabel" type="text" value="freq(Hz)" />
+        </div>
+
+        <div class="control-group mini">
+          <label for="outputHeader">Header :</label>
+          <input id="outputHeader" type="text" value="S21(dB)" />
+        </div>
+
+        <div class="btn-group">
+          <button id="btnConvert" class="primary">Convertir</button>
+          <button id="btnCopy" class="ghost">Copier</button>
+          <button id="btnDownload" class="ghost">Télécharger</button>
+        </div>
+
+        <div id="status" class="status">—</div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="card pane input-pane" aria-label="Entrée S2P">
+        <div class="pane-title">1) Coller le contenu .s2p</div>
+        <textarea id="s2pInput" class="big-textarea" placeholder="Colle ici le contenu .s2p — lignes commençant par ! ou # sont ignorées"></textarea>
+        <div class="hint small">Format attendu : ligne de données = fréquence puis colonnes S11 dB S11 deg S21 dB S21 deg ...</div>
+      </section>
+
+      <section class="card pane output-pane" aria-label="Résultat">
+        <div class="pane-title">2) Résultat (exportable)</div>
+        <pre id="outputArea" class="output-pre" aria-live="polite" role="region">— résultat ici —</pre>
+        <div class="hint small" style="margin-top:8px;">Les fréquences sont converties en Hz selon l'unité choisie. Ctrl+Entrée dans la zone d'entrée lance la conversion.</div>
+      </section>
+    </main>
+
+  </div>
+
+  <script defer src="../javascript/s2p_converter.js"></script>
+</body>
+</html>

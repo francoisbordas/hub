@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Plotter — Importer & tracer</title>
+
+  <!-- CSS principal (adapte le chemin si besoin) -->
+  <link rel="stylesheet" href="../style/plotter.css">
+</head>
+<body>
+  <div class="page">
+
+    <!-- 1) Header / title band -->
+    <header class="band header-band" role="banner">
+      <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+      <div class="container">
+        <div class="title-block">
+          <h1>Plotter — importer, analyser et tracer</h1>
+          <p class="lead">Colle un fichier (.s2p, .txt, .csv, .tsv, espaces...). Le séparateur est détecté automatiquement si 'Auto' est choisi ; sélectionne ensuite les colonnes et les paramètres — les changements s'appliquent en temps réel.</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2) Parameters top + single input / preview stack below -->
+    <section class="band params-band" aria-label="Paramètres d'analyse">
+      <div class="container">
+
+        <!-- 2.a parameters row (above the input/preview stack) -->
+        <div class="params-row">
+          <div class="param">
+            <label for="sepSelect">Séparateur</label>
+            <select id="sepSelect" class="control" title="Choix du séparateur (laisser Auto pour détection)">
+              <option value="auto" selected>Auto</option>
+              <option value=",">Virgule (,)</option>
+              <option value=";">Point-virgule (;)</option>
+              <option value="\t">Tabulation</option>
+              <option value=" ">Espace</option>
+              <option value="|">Pipe (|)</option>
+              <option value="custom">Personnalisé…</option>
+            </select>
+          </div>
+
+          <div class="param" id="customSepGroup" style="display:none">
+            <label for="customSep">Séparateur personnalisé</label>
+            <input id="customSep" class="control" type="text" maxlength="3" placeholder=";" />
+          </div>
+
+          <div class="param">
+            <label for="freqUnitSelect">Unité de l'abscisse du fichier d'entrée</label>
+            <select id="freqUnitSelect" class="control" title="Unité de base du fichier collé (unit, kilo, méga...)">
+              <option value="1" selected>Unit (1)</option>
+              <option value="1e3">k (10³)</option>
+              <option value="1e6">M (10⁶)</option>
+              <option value="1e9">G (10⁹)</option>
+              <option value="1e12">T (10¹²)</option>
+            </select>
+          </div>
+
+          <div class="param actions-param" style="align-self:flex-end">
+            <button id="btnParse" class="btn btn-primary" title="Analyser / détecter et séparer">Analyser</button>
+          </div>
+          <div class="param actions-param" style="align-self:flex-end">
+            <button id="btnClear" class="btn btn-ghost" title="Effacer tout">Effacer</button>
+          </div>
+
+          <div class="param status-param" aria-live="polite">
+            <div id="status">— prêt —</div>
+          </div>
+        </div>
+
+        <!-- 2.b input + preview côte à côte (fixed height, scrollable) -->
+        <div class="input-stack two-column">
+          <!-- input panel -->
+          <div class="panel input-panel" aria-label="Zone d'entrée (colle ici)">
+            <div class="panel-title">Entrée (Colle ici)</div>
+            <!-- wrap="off" pour permettre le scroll horizontal -->
+            <textarea id="inputLeft" class="fixed-box monospace-box" wrap="off" placeholder="Colle .s2p ou tableau (CSV/TSV/espaces)..."></textarea>
+            <div class="small-muted">Exemple :</div>
+            <div class="small-muted"># Ex: Hz S11(dB) S11deg S21(dB) S21deg</div>
+            <div class="small-muted">100 -0.1 180 -13 -60</div>
+          </div>
+
+          <!-- preview panel -->
+          <div class="panel preview-panel" aria-label="Aperçu et colonnes détectées">
+            <div class="panel-title">Aperçu & colonnes détectées</div>
+
+            <div class="panel-sub">
+              <div id="tableWrapper" class="fixed-box table-box" tabindex="0" aria-live="polite">
+                <div class="empty small-muted">Aucune donnée analysée</div>
+              </div>
+            </div>
+
+            <div class="panel-sub small">
+              <div class="sub-title">Colonnes détectées</div>
+              <div id="columnsList" class="columns-list small-muted">—</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 3) Plot area... (inchangé) -->
+    <section class="band plot-band" aria-label="Tracé et export">
+      <div class="container">
+        <!-- ...the existing plot area from earlier (kept unchanged) -->
+        <div class="plot-params" style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+            <div class="plot-param" style="min-width:200px">
+              <div class="sub-title">Axe X (abscisse)</div>
+              <div id="xColContainer" class="col-checkboxes" aria-label="Sélection X (radio)"></div>
+            </div>
+
+            <div class="plot-param" style="min-width:260px">
+              <div class="sub-title">Ordonnées (cocher une ou plusieurs)</div>
+              <div id="yColsContainer" class="col-checkboxes" aria-label="Sélection Y (checkbox)"></div>
+            </div>
+
+            <div class="plot-param">
+              <div class="sub-title">Palette</div>
+              <select id="paletteSelect" class="control">
+                <option value="pastel" selected>Pastel</option>
+                <option value="vives">Vives</option>
+                <option value="sombres">Sombres</option>
+                <option value="claires">Claires</option>
+                <option value="mono">Monochrome</option>
+              </select>
+            </div>
+            <div class="plot-param">
+              <div class="sub-title">Échelle X (unité affichée)</div>
+              <select id="xScaleSelect" class="control small" title="Unité d'affichage de l'axe X">
+                <option value="1">Unit (1)</option>
+                <option value="1e3">k (10³)</option>
+                <option value="1e6" selected>M (10⁶)</option>
+                <option value="1e9">G (10⁹)</option>
+                <option value="1e12">T (10¹²)</option>
+              </select>
+            </div>
+
+            <div class="plot-param">
+              <div class="sub-title">Échelle Y (unité)</div>
+              <select id="yScaleSelect" class="control small" title="Unité d'affichage de l'axe Y">
+                <option value="1" selected>Unit (1)</option>
+                <option value="1e3">k (10³)</option>
+                <option value="1e6">M (10⁶)</option>
+                <option value="1e9">G (10⁹)</option>
+                <option value="1e12">T (10¹²)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div class="plot-param" style="min-width:220px">
+              <div class="sub-title">Limites X (min / max)</div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input id="xMin" class="control" type="number" step="any" placeholder="min" style="width:90px"/>
+                <input id="xMax" class="control" type="number" step="any" placeholder="max" style="width:90px"/>
+                <div class="small-muted" style="font-size:12px">Valeurs dans l'unité choisie</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div class="plot-param" style="min-width:220px">
+              <div class="sub-title">Limites Y (min / max)</div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input id="yMin" class="control" type="number" step="any" placeholder="min" style="width:90px"/>
+                <input id="yMax" class="control" type="number" step="any" placeholder="max" style="width:90px"/>
+                <div class="small-muted" style="font-size:12px">Laisser vide = autoscale</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div class="plot-param" style="flex:1;min-width:220px;max-width:350px">
+              <label for="chartTitle">Titre du graphique</label>
+              <input id="chartTitle" class="control" type="text" placeholder="Titre (optionnel)"/>
+            </div>
+            <div class="plot-param" style="min-width:220px">
+              <label for="xTitle">Titre axe X</label>
+              <input id="xTitle" class="control" type="text" placeholder="Ex: Fréquence (GHz)"/>
+            </div>
+            <div class="plot-param" style="min-width:220px">
+              <label for="yTitle">Titre axe Y</label>
+              <input id="yTitle" class="control" type="text" placeholder="Ex: Amplitude (dB)"/>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="plot-grid">
+          <div class="plot-panel">
+            <div class="panel-title">Graphe</div>
+            <div id="chartArea" class="chart-area" role="region" aria-label="Zone graphique">
+              <div class="chart-placeholder small-muted">Aucun tracé — appuie sur "Analyser" puis ajuste les paramètres</div>
+            </div>
+          </div>
+
+          <aside class="export-panel" aria-label="Extraction et export">
+            <div class="panel-title">Extraction & export</div>
+
+            <div class="export-block">
+              <div class="export-info small-muted" id="exportInfo">Le code LaTeX contient les données — ajoute titre/legend si besoin.</div>
+            </div>
+
+            <div class="panel-sub small">
+              <div class="sub-title">Légende / Séries</div>
+              <div id="legendArea" class="legend-area small-muted">—</div>
+
+              <div class="sub-title" style="margin-top:10px">Éditeur de légendes (modifie le nom affiché / export)</div>
+              <div id="legendEditor" class="legend-editor small-muted">
+                <div class="small-muted">Aucune série sélectionnée</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:8px;">
+            <button id="btnCopyData" class="btn">Copier sélection</button>
+            <button id="btnDownloadData" class="btn">Télécharger CSV</button>
+            <button id="btnExportPNG" class="btn btn-primary" title="Télécharger PNG (si activé)">Télécharger PNG</button>
+            <button id="btnExportLatex" class="btn">Exporter LaTeX</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Chart.js CDN puis scripts JS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script defer src="../javascript/plotter_1.js"></script>
+  <script defer src="../javascript/plotter_2.js"></script>
+  <script defer src="../javascript/plotter_3.js"></script>
+</body>
+</html>
