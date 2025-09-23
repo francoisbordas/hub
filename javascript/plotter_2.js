@@ -249,12 +249,24 @@
 
   // Build CSV (x + yCols) with headerLabels optionally provided
   // buildCSV(tableObj, xCol, yCols, sep = ',', headerLabels = null)
+  // Build CSV (x + yCols) with headerLabels optionally provided
+  // buildCSV(tableObj, xCol, yCols, sep = ',', headerLabels = null)
   function buildCSV(tableObj, xCol, yCols, sep = ',', headerLabels = null) {
     if (!tableObj) return '';
     const rows = tableObj.rows;
     const start = tableObj.startIndex || 0;
     const colNames = (window.plotterCore && window.plotterCore.getColNames) ? window.plotterCore.getColNames() : [];
 
+    // SAME unit/scale factors used for plotting
+    const freqUnitEl = $id('freqUnitSelect');
+    const inputUnitMult = freqUnitEl ? safeNum(freqUnitEl.value, 1) : 1; // e.g. 1e9 if input is GHz
+    const xScaleEl = $id('xScaleSelect'); const xScale = xScaleEl ? safeNum(xScaleEl.value, 1) : 1; // display divisor
+    const yScaleEl = $id('yScaleSelect'); const yScale = yScaleEl ? safeNum(yScaleEl.value, 1) : 1;
+
+    // header comment to state the conversion performed (helpful for consumers)
+    const unitComment = `# Units conversion: X_out = X_in * ${inputUnitMult} / ${xScale} ; Y_out = Y_in / ${yScale}`;
+
+    // build CSV header (first non-comment line)
     const headerParts = [];
     const xHeader = (headerLabels && headerLabels[0]) ? headerLabels[0] : (colNames[xCol] || `X_col${xCol+1}`);
     headerParts.push(escapeCsv(xHeader, sep));
@@ -263,21 +275,59 @@
       const label = (headerLabels && headerLabels[i+1]) ? headerLabels[i+1] : (colNames[c] || `col${c+1}`);
       headerParts.push(escapeCsv(label, sep));
     }
-    const lines = [ headerParts.join(sep) ];
+
+    const lines = [];
+    // put comment first so apps (Excel) ignore it; then add header row
+    lines.push(unitComment);
+    lines.push(headerParts.join(sep));
+
+    // helper number regex (accepts floats and exponents)
+    const numRe = /^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/;
 
     for (let r = start; r < rows.length; r++) {
       const parts = [];
-      const xv = rows[r][xCol] || '';
-      parts.push(escapeCsv(String(xv), sep));
+
+      // X conversion: apply inputUnitMult then divide by xScale (same as plotting)
+      const xvRaw = rows[r][xCol];
+      const xvStr = (xvRaw === undefined || xvRaw === null) ? '' : String(xvRaw).trim();
+      let xOutStr = xvStr;
+      if (xvStr !== '') {
+        const xs = xvStr.replace(',', '.');
+        if (numRe.test(xs)) {
+          const xBase = Number(xs) * inputUnitMult;
+          if (Number.isFinite(xBase)) {
+            const xDisplay = xBase / xScale;
+            // keep full precision but avoid trailing scientific notation for integers if possible
+            xOutStr = String(xDisplay);
+          }
+        }
+      }
+      parts.push(escapeCsv(xOutStr, sep));
+
+      // Y conversion: divide by yScale (plotter divides Y by yScale)
       for (let i=0;i<yCols.length;i++){
         const c = yCols[i];
-        const v = rows[r][c] || '';
-        parts.push(escapeCsv(String(v), sep));
+        const vRaw = rows[r][c];
+        const vStr = (vRaw === undefined || vRaw === null) ? '' : String(vRaw).trim();
+        let outStr = vStr;
+        if (vStr !== '') {
+          const ys = vStr.replace(',', '.');
+          if (numRe.test(ys)) {
+            const yNum = Number(ys);
+            if (Number.isFinite(yNum)) {
+              const yDisplay = yNum / yScale;
+              outStr = String(yDisplay);
+            }
+          }
+        }
+        parts.push(escapeCsv(outStr, sep));
       }
+
       lines.push(parts.join(sep));
     }
     return lines.join('\n');
   }
+
 
   // Generate PGFPlots document (simple template) from tableObj and selected columns
   function generatePGFPlots(tableObj, xCol, yCols) {
