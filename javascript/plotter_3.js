@@ -227,22 +227,48 @@
   }
 
   function onCopy() {
+    // ensure latest displayed units/datas are applied before export
+    try { autoPlot(); } catch(e) { /* ignore */ }
+
     const tableObj = window.plotterCore.getLastTable();
     if (!tableObj) return setStatus('Aucune table');
     const x = getSelectedX(); const ys = gatherSelectedYsOrdered();
     if (!ys.length) return setStatus('Sélectionne au moins une colonne Y');
+
     const headerLabels = gatherLabelsForPlot(x, ys);
+    // use tab as before for copy/paste
     const csv = window.plotterPlot.buildCSV(tableObj, x, ys, '\t', headerLabels);
     if (!csv) return setStatus('Rien à copier');
+
+    // detect first comment line to surface units in status
+    let statusMsg = 'Copié';
+    const firstLine = csv.split(/\r?\n/)[0] || '';
+    if (firstLine.startsWith('#')) {
+      // show the units comment but keep the full CSV (including comment) in the clipboard
+      statusMsg = `Copié (${firstLine.replace(/^#\s*/,'')})`;
+    }
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(csv).then(()=> setStatus('Copié'));
+      navigator.clipboard.writeText(csv).then(()=> setStatus(statusMsg), ()=> setStatus('Échec copie'));
     } else {
-      const ta = document.createElement('textarea'); ta.value = csv; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); ta.remove(); setStatus('Copié (fallback)');
+      const ta = document.createElement('textarea'); ta.value = csv; document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        setStatus(statusMsg + ' (fallback)');
+      } catch (e) {
+        setStatus('Échec copie (fallback)');
+      }
+      ta.remove();
     }
   }
 
+
+
   function onDownload() {
+    // ensure latest displayed units/datas are applied before export
+    try { autoPlot(); } catch(e) { /* ignore */ }
+
     const tableObj = window.plotterCore.getLastTable();
     if (!tableObj) return setStatus('Aucune table');
     const x = getSelectedX(); const ys = gatherSelectedYsOrdered();
@@ -258,7 +284,11 @@
     setStatus('CSV prêt');
   }
 
+
   function onLatex() {
+    // ensure latest displayed units/datas are applied before export
+    try { autoPlot(); } catch(e) { /* ignore */ }
+
     const tableObj = window.plotterCore.getLastTable();
     if (!tableObj) return setStatus('Aucune table');
     const x = getSelectedX(); const ys = gatherSelectedYsOrdered();
@@ -276,6 +306,9 @@
   }
 
   function onExportPNG() {
+    // ensure chart is redrawn with current units before exporting the canvas
+    try { autoPlot(); } catch(e) { /* ignore */ }
+
     if (!window.plotterPlot || typeof window.plotterPlot.exportPNG !== 'function') {
       setStatus('Export PNG non disponible');
       return;
@@ -283,6 +316,7 @@
     const filename = (($('chartTitle') && $('chartTitle').value) ? $('chartTitle').value.replace(/\s+/g,'_') + '.png' : 'plot.png');
     window.plotterPlot.exportPNG(filename);
   }
+
 
   /* ---------- Attach generic input listeners (so changes auto-update) ---------- */
 
