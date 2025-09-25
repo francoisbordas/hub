@@ -83,6 +83,8 @@
   window.ChainUI._pendingRequest = null;
   window.ChainUI.charts = charts;
   window.ChainUI.lastComputed = lastComputed;
+  // chartRanges stores per-chart ymin/ymax (null = autoscale)
+  window.ChainUI.chartRanges = window.ChainUI.chartRanges || { gain:{ymin:null,ymax:null}, nf:{ymin:null,ymax:null}, op1:{ymin:null,ymax:null}, ip1:{ymin:null,ymax:null} };
 
   /* ---------- Library API wrapper ---------- */
   const LibraryAPI = {
@@ -110,7 +112,7 @@
       interaction:{ mode:'index', intersect:false },
       plugins:{ legend:{ display:false } },
       scales:{
-        x:{ title:{ display:true, text:'Fréquence' }, ticks:{ maxRotation:0 }, grid:{ color:gridColor }, ticksColor: axisColor },
+        x:{ title:{ display:true, text:'Fréquence' }, ticks:{ maxRotation:0 }, grid:{ color:gridColor } },
         y:{ grid:{ color:gridColor }, ticks:{ color:axisColor } }
       }
     };
@@ -135,7 +137,7 @@
     if (!chart) return;
     chart.data.labels = labels;
     chart.data.datasets[0].data = (data||[]).map(v => isFinite(v) ? +v.toFixed(4) : null);
-    chart.update();
+    try { chart.update(); } catch(e) { try { chart.update('none'); } catch(_){} }
   }
 
   /* ---------- Stage defaults / initial chain (compatible compute module) ---------- */
@@ -328,8 +330,6 @@
       root.dataset.type = newType;
       data.type = newType;
       refs = renderRowsForType(newType); // recreate rows & refs
-      // set up newly created lib selects values if any
-      // populateLibSelect done by renderRowsForType; ensure selected libIds are restored if present
       writeBack(); // write back to stages
       renderSummaryTable();
       requestCompute();
@@ -399,11 +399,9 @@
         s.gain_dB = -Math.abs(s.insertion_loss_dB || 0);
         s.nf_dB = (nfVal !== '') ? parseFloat(nfVal) : s.insertion_loss_dB;
       } else if (s.type === 'atten') {
-        // insertion input shows positive attenuation
         const att = insVal !== '' ? Math.abs(parseFloat(insVal)) : 0;
         s.insertion_loss_dB = att;
-        s.gain_dB_max = -att; // best position expressed as negative gain
-        // keep nominal gain if existed, else set to -att
+        s.gain_dB_max = -att;
         if (s.gain_dB === undefined || s.gain_dB === 0) s.gain_dB = -att;
         s.nf_dB = (nfVal !== '') ? parseFloat(nfVal) : Math.abs(att);
       } else if (s.type === 'mixer') {
@@ -429,8 +427,6 @@
         el.addEventListener('input', (ev) => {
           // if lib select changed -> enable/disable corresponding input
           controls.querySelectorAll('.lib_select').forEach((sel, idx) => {
-            // map position to input: order created depends on type but indices correspond
-            // safer: look for sibling input in same container
             const inputSibling = sel.closest('.field-lib')?.previousElementSibling?.querySelector('input') || controls.querySelectorAll('input')[idx];
             if (inputSibling) inputSibling.disabled = !!sel.value;
           });
@@ -591,107 +587,399 @@
 
   function _flushPending(){
     if (window.ChainUI._pendingRequest && window.ChainCompute && typeof window.ChainCompute.computeRange === 'function') {
-      try { window.ChainCompute.computeRange(window.ChainUI._pendingRequest); } catch(e){ console.warn('flush pending compute failed', e); }
+      try { window.ChainCompute.computeRange(window.ChainUI._pendingRequest); } catch (e) { console.warn('flush pending compute failed', e); }
       window.ChainUI._pendingRequest = null;
     }
   }
 
-  /* ---------- UI update after compute (called by compute module) ---------- */
-// Remplacer la fonction updateUIAfterCompute dans multi_chain_1.js par ce bloc complet
-function updateUIAfterCompute(result){
-  // normalise result -> lastComputed
-  if (!result || !Array.isArray(result.freqs)) {
-    lastComputed = { freqs: [], gain: [], nf: [], op1: [], ip1: [] };
-  } else {
-    // defensive copy
-    lastComputed = {
-      freqs: Array.isArray(result.freqs) ? result.freqs.slice() : [],
-      gain: Array.isArray(result.gain) ? result.gain.slice() : [],
-      nf: Array.isArray(result.nf) ? result.nf.slice() : [],
-      op1: Array.isArray(result.op1) ? result.op1.slice() : [],
-      ip1: Array.isArray(result.ip1) ? result.ip1.slice() : []
+  /* ---------- Per-chart controls (Ymin / Ymax) ---------- */
+  // createPerChartScaleControls creates inputs above each chart once
+  /* ---------- Per-chart controls (Ymin / Ymax) ----------
+     Remplacer l'ancienne createPerChartScaleControls() par celle-ci.
+     - plus de boutons OK/Auto
+     - mise à jour live (debounced) des chartes
+  */
+  function createPerChartScaleControls(){
+    // mapping key -> canvas id and label
+    const MAP = {
+      gain: { canvasId:'chartGain', label:'Gain' },
+      nf:   { canvasId:'chartNF',   label:'NF' },
+      op1:  { canvasId:'chartOP1',  label:'OP1' },
+      ip1:  { canvasId:'chartIP1',  label:'IP1' }
     };
-  }
 
-  // expose to UI/debug
-  if (window.ChainUI) window.ChainUI.lastComputed = lastComputed;
+    // helper to parse input -> null or number
+    function parseOrNull(v){
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      if (s === '' || s.toLowerCase() === 'auto') return null;
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
 
-  // Active range affichage
-  if (lastComputed.freqs && lastComputed.freqs.length) {
-    const fmin = lastComputed.freqs[0];
-    const fmax = lastComputed.freqs[lastComputed.freqs.length - 1];
-    if (activeRangeEl) activeRangeEl.textContent = `${Number(fmin).toLocaleString()} Hz → ${Number(fmax).toLocaleString()} Hz`;
-  } else {
-    if (activeRangeEl) activeRangeEl.textContent = '—';
-  }
+    // ensure ChainUI state exists
+    if (!window.ChainUI) window.ChainUI = {};
+    if (!window.ChainUI.chartRanges) window.ChainUI.chartRanges = { gain:{ymin:null,ymax:null}, nf:{ymin:null,ymax:null}, op1:{ymin:null,ymax:null}, ip1:{ymin:null,ymax:null} };
 
-  // Snapshot au centre (point milieu)
-  if (!lastComputed.freqs || lastComputed.freqs.length === 0) {
-    if (gainEl) gainEl.textContent = '— dB';
-    if (nfEl) nfEl.textContent = '— dB';
-    if (opOutEl) opOutEl.textContent = '— dBm';
-    if (ipInEl) ipInEl.textContent = '— dBm';
-  } else {
-    const mid = Math.floor(lastComputed.freqs.length / 2);
-    const g = lastComputed.gain[mid], n = lastComputed.nf[mid], o = lastComputed.op1[mid], ip = lastComputed.ip1[mid];
-    if (gainEl) gainEl.textContent = isFinite(g) ? g.toFixed(2) + ' dB' : '— dB';
-    if (nfEl) nfEl.textContent = isFinite(n) ? n.toFixed(2) + ' dB' : '— dB';
-    if (opOutEl) opOutEl.textContent = isFinite(o) ? o.toFixed(2) + ' dBm' : '— dBm';
-    if (ipInEl) ipInEl.textContent = isFinite(ip) ? ip.toFixed(2) + ' dBm' : '— dBm';
-  }
+// Remplacer la fonction setYAxisRangeForChart par ceci (multi_chain_1.js)
+function findYScaleId(chart){
+  try {
+    if (chart && chart.scales) {
+      const ids = Object.keys(chart.scales);
+      // prefer an id containing 'y'
+      for (const id of ids) if (String(id).toLowerCase().includes('y')) return id;
+      if (ids.length) return ids[0];
+    }
+  } catch(e){}
+  return 'y';
+}
 
-  // helper min/max en ignorant NaN/Infinity
-  function minMax(arr){
-    const vals = (arr || []).filter(v => typeof v === 'number' && isFinite(v));
-    if (!vals.length) return { min: NaN, max: NaN };
+function setYAxisRangeForChart(key, ymin, ymax){
+  const ch = charts[key];
+  // persist runtime values for export / UI state
+  window.ChainUI.chartRanges[key] = {
+    ymin: (Number.isFinite(Number(ymin)) ? Number(ymin) : null),
+    ymax: (Number.isFinite(Number(ymax)) ? Number(ymax) : null)
+  };
+
+  if (!ch) return;
+
+  const yId = findYScaleId(ch);
+
+  // helper : get finite numeric values from all datasets for this chart
+  function getDataMinMax(chart){
+    const vals = [];
+    try {
+      if (chart && Array.isArray(chart.data && chart.data.datasets)) {
+        chart.data.datasets.forEach(ds => {
+          if (!ds || !Array.isArray(ds.data)) return;
+          ds.data.forEach(v => {
+            const n = Number(v);
+            if (Number.isFinite(n)) vals.push(n);
+          });
+        });
+      }
+    } catch(e){}
+    if (!vals.length) return null;
     return { min: Math.min(...vals), max: Math.max(...vals) };
   }
 
-  const gMM = minMax(lastComputed.gain);
-  const nfMM = minMax(lastComputed.nf);
-  const opMM = minMax(lastComputed.op1);
-  const ipMM = minMax(lastComputed.ip1);
+  try {
+    // prefer writing to instantiated scale options when available
+    let sopts = (ch.scales && ch.scales[yId] && ch.scales[yId].options) ? ch.scales[yId].options : null;
+    if (!sopts) {
+      // ensure chart.options.scales[yId] exists and use it as fallback
+      if (!ch.options) ch.options = {};
+      if (!ch.options.scales) ch.options.scales = {};
+      ch.options.scales[yId] = ch.options.scales[yId] || {};
+      sopts = ch.options.scales[yId];
+    }
 
-  // Mettre à jour les badges (plot) s'ils existent (pour la zone graphique)
-  if (gainPlotMin) gainPlotMin.textContent = isFinite(gMM.min) ? gMM.min.toFixed(2) : '—';
-  if (gainPlotMax) gainPlotMax.textContent = isFinite(gMM.max) ? gMM.max.toFixed(2) : '—';
-  if (nfPlotMin) nfPlotMin.textContent = isFinite(nfMM.min) ? nfMM.min.toFixed(2) : '—';
-  if (nfPlotMax) nfPlotMax.textContent = isFinite(nfMM.max) ? nfMM.max.toFixed(2) : '—';
-  if (opPlotMin) opPlotMin.textContent = isFinite(opMM.min) ? opMM.min.toFixed(2) : '—';
-  if (opPlotMax) opPlotMax.textContent = isFinite(opMM.max) ? opMM.max.toFixed(2) : '—';
-  if (ipPlotMin) ipPlotMin.textContent = isFinite(ipMM.min) ? ipMM.min.toFixed(2) : '—';
-  if (ipPlotMax) ipPlotMax.textContent = isFinite(ipMM.max) ? ipMM.max.toFixed(2) : '—';
+    // CASE A: both bounds null -> autoscale from data
+    if ((ymin === null || ymin === undefined || !Number.isFinite(Number(ymin))) &&
+        (ymax === null || ymax === undefined || !Number.isFinite(Number(ymax)))) {
 
-  // ---------- IMPORTANT: mettre à jour la zone "Pire cas (sur plage)" ----------
-  // IDs attendues dans le HTML : gainMin, gainMax, nfMin, nfMax, opMin, opMax, ipMin, ipMax
-  function setPireCas(id, value, unit='') {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = (typeof value === 'number' && isFinite(value)) ? value.toFixed(2) + (unit || '') : '—';
-  }
+      const dm = getDataMinMax(ch);
+      if (dm) {
+        let minV = dm.min, maxV = dm.max;
+        // if single-value dataset, add small padding
+        if (minV === maxV) {
+          const pad = (Math.abs(minV) > 1e-6) ? Math.abs(minV) * 0.05 : 1;
+          minV = minV - pad;
+          maxV = maxV + pad;
+        } else {
+          // add small 2% padding for nicer framing
+          const pad = Math.max(Math.abs(maxV - minV) * 0.02, 1e-6);
+          minV = minV - pad;
+          maxV = maxV + pad;
+        }
+        // Apply computed bounds (but keep persisted state as null to signal 'auto')
+        sopts.min = minV;
+        sopts.max = maxV;
+      } else {
+        // no numeric data -> remove constraints; let Chart.js fallback
+        if ('min' in sopts) delete sopts.min;
+        if ('max' in sopts) delete sopts.max;
+      }
 
-  setPireCas('gainMin', gMM.min, ' dB');
-  setPireCas('gainMax', gMM.max, ' dB');
+      // apply update immediately
+      try { ch.update(); } catch(e){ try { ch.update('none'); } catch(_){} }
+      return;
+    }
 
-  setPireCas('nfMin', nfMM.min, ' dB');
-  setPireCas('nfMax', nfMM.max, ' dB');
+    // CASE B: partial autoscale (one bound empty)
+    if ((ymin === null || ymin === undefined || !Number.isFinite(Number(ymin))) ||
+        (ymax === null || ymax === undefined || !Number.isFinite(Number(ymax)))) {
 
-  setPireCas('opMin', opMM.min, ' dBm');
-  setPireCas('opMax', opMM.max, ' dBm');
+      // compute the missing bound from data
+      const dm = getDataMinMax(ch);
+      let computedMin = null, computedMax = null;
+      if (dm) {
+        computedMin = dm.min; computedMax = dm.max;
+        if (computedMin === computedMax) {
+          const pad = (Math.abs(computedMin) > 1e-6) ? Math.abs(computedMin) * 0.05 : 1;
+          computedMin -= pad; computedMax += pad;
+        } else {
+          const pad = Math.max(Math.abs(computedMax - computedMin) * 0.02, 1e-6);
+          computedMin -= pad; computedMax += pad;
+        }
+      }
 
-  setPireCas('ipMin', ipMM.min, ' dBm');
-  setPireCas('ipMax', ipMM.max, ' dBm');
+      const finalMin = (ymin === null || ymin === undefined || !Number.isFinite(Number(ymin))) ? (computedMin !== null ? computedMin : undefined) : Number(ymin);
+      const finalMax = (ymax === null || ymax === undefined || !Number.isFinite(Number(ymax))) ? (computedMax !== null ? computedMax : undefined) : Number(ymax);
 
-  // ---------- update charts (labels & data) ----------
-  if (charts.gain) {
-    const labels = (lastComputed.freqs || []).map(f => formatFreqLabel(f));
-    updateChartDataset(charts.gain, labels, lastComputed.gain);
-    updateChartDataset(charts.nf, labels, lastComputed.nf);
-    updateChartDataset(charts.op1, labels, lastComputed.op1);
-    updateChartDataset(charts.ip1, labels, lastComputed.ip1);
+      if (finalMin === undefined) { if ('min' in sopts) delete sopts.min; } else sopts.min = Number(finalMin);
+      if (finalMax === undefined) { if ('max' in sopts) delete sopts.max; } else sopts.max = Number(finalMax);
+
+      try { ch.update(); } catch(e){ try { ch.update('none'); } catch(_){} }
+      return;
+    }
+
+    // CASE C: both bounds provided -> apply them (ensure numeric)
+    if (Number.isFinite(Number(ymin))) sopts.min = Number(ymin); else if ('min' in sopts) delete sopts.min;
+    if (Number.isFinite(Number(ymax))) sopts.max = Number(ymax); else if ('max' in sopts) delete sopts.max;
+
+    try { ch.update(); } catch(e){ try { ch.update('none'); } catch(_){} }
+  } catch (e) {
+    console.warn('setYAxisRangeForChart error', e);
+    try { ch.update(); } catch(_) {}
   }
 }
 
+
+
+    // expose API (already used by multi_io)
+    window.ChainUI.setYAxisRangeForChart = setYAxisRangeForChart;
+    window.ChainUI.getChartRanges = function(){ return JSON.parse(JSON.stringify(window.ChainUI.chartRanges || {})); };
+
+    window.ChainUI.applyChartRangesFromObject = function(obj){
+      if (!obj || typeof obj !== 'object') return;
+      Object.keys(MAP).forEach(k=>{
+        try {
+          const item = obj[k];
+          const ymin = (item && (item.ymin !== undefined)) ? (Number.isFinite(Number(item.ymin)) ? Number(item.ymin) : null) : null;
+          const ymax = (item && (item.ymax !== undefined)) ? (Number.isFinite(Number(item.ymax)) ? Number(item.ymax) : null) : null;
+          // set inputs if present
+          const yminEl = document.getElementById(`${k}YMinInput`);
+          const ymaxEl = document.getElementById(`${k}YMaxInput`);
+          if (yminEl) yminEl.value = (ymin === null ? '' : String(ymin));
+          if (ymaxEl) ymaxEl.value = (ymax === null ? '' : String(ymax));
+          setYAxisRangeForChart(k, ymin, ymax);
+        } catch(e){ console.warn('applyChartRangesFromObject failed for', k, e); }
+      });
+    };
+
+    // Debounce helper per-input to avoid too many chart.update calls
+    const debounceTimers = {};
+    function debounceSet(key, ymin, ymax, ms=250){
+      if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
+      debounceTimers[key] = setTimeout(()=> {
+        setYAxisRangeForChart(key, ymin, ymax);
+        debounceTimers[key] = null;
+      }, ms);
+    }
+
+    // create DOM controls for each chart if not yet present
+    Object.keys(MAP).forEach(key=>{
+      const map = MAP[key];
+      const canvas = document.getElementById(map.canvasId);
+      if (!canvas) return;
+      const card = canvas.closest('.chart-card') || canvas.parentElement;
+      if (!card) return;
+
+      // avoid duplicate control creation
+      if (card.querySelector(`.chart-range-${key}`)) return;
+
+      // create header container if absent
+      let header = card.querySelector('.chart-top-controls');
+      if (!header) {
+        header = document.createElement('div');
+        header.className = 'chart-top-controls';
+        header.style.display = 'flex';
+        header.style.gap = '8px';
+        header.style.alignItems = 'center';
+        header.style.justifyContent = 'flex-end';
+        header.style.marginBottom = '6px';
+        card.insertBefore(header, canvas);
+      }
+
+      // build compact inputs (no buttons)
+      const wrapper = document.createElement('div');
+      wrapper.className = `chart-range-wrapper chart-range-${key}`;
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '6px';
+      wrapper.innerHTML = `
+        <label class="small muted" style="white-space:nowrap;">${map.label} ymin</label>
+        <input id="${key}YMinInput" placeholder="auto" style="width:84px;padding:4px;border-radius:5px;font-size:0.85rem;" />
+        <label class="small muted" style="white-space:nowrap;">Ymax</label>
+        <input id="${key}YMaxInput" placeholder="auto" style="width:84px;padding:4px;border-radius:5px;font-size:0.85rem;" />
+      `;
+      header.appendChild(wrapper);
+
+      const yminEl = wrapper.querySelector(`#${key}YMinInput`);
+      const ymaxEl = wrapper.querySelector(`#${key}YMaxInput`);
+
+      // input handlers: live update with debounce
+      function onInputChanged(){
+        const rawA = String(yminEl.value || '').trim();
+        const rawB = String(ymaxEl.value || '').trim();
+        const a = parseOrNull(rawA);
+        const b = parseOrNull(rawB);
+
+        // If both fields are empty -> force autoscale immediately
+        if (rawA === '' && rawB === '') {
+          // persist
+          window.ChainUI.chartRanges[key] = { ymin: null, ymax: null };
+          // apply immediate autoscale
+          setYAxisRangeForChart(key, null, null);
+          // clear any pending debounce for this key
+          if (debounceTimers[key]) { clearTimeout(debounceTimers[key]); debounceTimers[key] = null; }
+          return;
+        }
+
+        // If one field is empty -> treat it as null (autoscale for that bound) and apply immediately:
+        if (rawA === '' || rawB === '') {
+          const newYmin = rawA === '' ? null : a;
+          const newYmax = rawB === '' ? null : b;
+          // persist then apply
+          window.ChainUI.chartRanges[key] = { ymin: newYmin, ymax: newYmax };
+          setYAxisRangeForChart(key, newYmin, newYmax);
+          if (debounceTimers[key]) { clearTimeout(debounceTimers[key]); debounceTimers[key] = null; }
+          return;
+        }
+
+        // If both defined and invalid ordering -> give visual feedback & persist but DO NOT apply scale
+        if (a !== null && b !== null && a >= b) {
+          // subtle border flash
+          yminEl.style.borderColor = 'var(--danger)';
+          ymaxEl.style.borderColor = 'var(--danger)';
+          setTimeout(()=>{ yminEl.style.borderColor=''; ymaxEl.style.borderColor=''; }, 700);
+          // persist invalid values so user can keep editing, but do not apply to chart
+          window.ChainUI.chartRanges[key] = { ymin: a, ymax: b };
+          // cancel any debounce
+          if (debounceTimers[key]) { clearTimeout(debounceTimers[key]); debounceTimers[key] = null; }
+          return;
+        }
+
+        // Normal case: both numbers valid -> debounce applying the scale for smoothness
+        debounceSet(key, a, b, 250);
+      }
+
+
+      yminEl.addEventListener('input', onInputChanged);
+      ymaxEl.addEventListener('input', onInputChanged);
+      // support paste/blur events to force immediate apply
+      yminEl.addEventListener('blur', onInputChanged);
+      ymaxEl.addEventListener('blur', onInputChanged);
+
+      // Restore saved runtime values into inputs and apply them
+      const saved = (window.ChainUI.chartRanges && window.ChainUI.chartRanges[key]) ? window.ChainUI.chartRanges[key] : null;
+      if (saved) {
+        if (saved.ymin !== null && saved.ymin !== undefined && Number.isFinite(saved.ymin)) yminEl.value = saved.ymin;
+        if (saved.ymax !== null && saved.ymax !== undefined && Number.isFinite(saved.ymax)) ymaxEl.value = saved.ymax;
+        if ((saved.ymin !== null && saved.ymin !== undefined) || (saved.ymax !== null && saved.ymax !== undefined)) {
+          // apply immediately (no debounce)
+          setYAxisRangeForChart(key, saved.ymin, saved.ymax);
+        }
+      }
+    }); // end map keys
+  }
+
+
+  /* ---------- UI update after compute (called by compute module) ---------- */
+  function updateUIAfterCompute(result){
+    // normalise result -> lastComputed
+    if (!result || !Array.isArray(result.freqs)) {
+      lastComputed = { freqs: [], gain: [], nf: [], op1: [], ip1: [] };
+    } else {
+      // defensive copy
+      lastComputed = {
+        freqs: Array.isArray(result.freqs) ? result.freqs.slice() : [],
+        gain: Array.isArray(result.gain) ? result.gain.slice() : [],
+        nf: Array.isArray(result.nf) ? result.nf.slice() : [],
+        op1: Array.isArray(result.op1) ? result.op1.slice() : [],
+        ip1: Array.isArray(result.ip1) ? result.ip1.slice() : []
+      };
+    }
+
+    // expose to UI/debug
+    if (window.ChainUI) window.ChainUI.lastComputed = lastComputed;
+
+    // Active range affichage
+    if (lastComputed.freqs && lastComputed.freqs.length) {
+      const fmin = lastComputed.freqs[0];
+      const fmax = lastComputed.freqs[lastComputed.freqs.length - 1];
+      if (activeRangeEl) activeRangeEl.textContent = `${Number(fmin).toLocaleString()} Hz → ${Number(fmax).toLocaleString()} Hz`;
+    } else {
+      if (activeRangeEl) activeRangeEl.textContent = '—';
+    }
+
+    // Snapshot au centre (point milieu)
+    if (!lastComputed.freqs || lastComputed.freqs.length === 0) {
+      if (gainEl) gainEl.textContent = '— dB';
+      if (nfEl) nfEl.textContent = '— dB';
+      if (opOutEl) opOutEl.textContent = '— dBm';
+      if (ipInEl) ipInEl.textContent = '— dBm';
+    } else {
+      const mid = Math.floor(lastComputed.freqs.length / 2);
+      const g = lastComputed.gain[mid], n = lastComputed.nf[mid], o = lastComputed.op1[mid], ip = lastComputed.ip1[mid];
+      if (gainEl) gainEl.textContent = isFinite(g) ? g.toFixed(2) + ' dB' : '— dB';
+      if (nfEl) nfEl.textContent = isFinite(n) ? n.toFixed(2) + ' dB' : '— dB';
+      if (opOutEl) opOutEl.textContent = isFinite(o) ? o.toFixed(2) + ' dBm' : '— dBm';
+      if (ipInEl) ipInEl.textContent = isFinite(ip) ? ip.toFixed(2) + ' dBm' : '— dBm';
+    }
+
+    // helper min/max en ignorant NaN/Infinity
+    function minMax(arr){
+      const vals = (arr || []).filter(v => typeof v === 'number' && isFinite(v));
+      if (!vals.length) return { min: NaN, max: NaN };
+      return { min: Math.min(...vals), max: Math.max(...vals) };
+    }
+
+    const gMM = minMax(lastComputed.gain);
+    const nfMM = minMax(lastComputed.nf);
+    const opMM = minMax(lastComputed.op1);
+    const ipMM = minMax(lastComputed.ip1);
+
+    // Mettre à jour les badges (plot) s'ils existent (pour la zone graphique)
+    if (gainPlotMin) gainPlotMin.textContent = isFinite(gMM.min) ? gMM.min.toFixed(2) : '—';
+    if (gainPlotMax) gainPlotMax.textContent = isFinite(gMM.max) ? gMM.max.toFixed(2) : '—';
+    if (nfPlotMin) nfPlotMin.textContent = isFinite(nfMM.min) ? nfMM.min.toFixed(2) : '—';
+    if (nfPlotMax) nfPlotMax.textContent = isFinite(nfMM.max) ? nfMM.max.toFixed(2) : '—';
+    if (opPlotMin) opPlotMin.textContent = isFinite(opMM.min) ? opMM.min.toFixed(2) : '—';
+    if (opPlotMax) opPlotMax.textContent = isFinite(opMM.max) ? opMM.max.toFixed(2) : '—';
+    if (ipPlotMin) ipPlotMin.textContent = isFinite(ipMM.min) ? ipMM.min.toFixed(2) : '—';
+    if (ipPlotMax) ipPlotMax.textContent = isFinite(ipMM.max) ? ipMM.max.toFixed(2) : '—';
+
+    // ---------- IMPORTANT: mettre à jour la zone "Pire cas (sur plage)" ----------
+    function setPireCas(id, value, unit='') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = (typeof value === 'number' && isFinite(value)) ? value.toFixed(2) + (unit || '') : '—';
+    }
+
+    setPireCas('gainMin', gMM.min, ' dB');
+    setPireCas('gainMax', gMM.max, ' dB');
+
+    setPireCas('nfMin', nfMM.min, ' dB');
+    setPireCas('nfMax', nfMM.max, ' dB');
+
+    setPireCas('opMin', opMM.min, ' dBm');
+    setPireCas('opMax', opMM.max, ' dBm');
+
+    setPireCas('ipMin', ipMM.min, ' dBm');
+    setPireCas('ipMax', ipMM.max, ' dBm');
+
+    // ---------- update charts (labels & data) ----------
+    if (charts.gain) {
+      const labels = (lastComputed.freqs || []).map(f => formatFreqLabel(f));
+      updateChartDataset(charts.gain, labels, lastComputed.gain);
+      updateChartDataset(charts.nf, labels, lastComputed.nf);
+      updateChartDataset(charts.op1, labels, lastComputed.op1);
+      updateChartDataset(charts.ip1, labels, lastComputed.ip1);
+    }
+  }
 
   /* ---------- CSV export (from lastComputed) ---------- */
   function exportCsv(){
@@ -739,19 +1027,22 @@ function updateUIAfterCompute(result){
 
     // if compute module is present, notify it we are ready
     if (window.ChainCompute && typeof window.ChainCompute._notifyUIReady === 'function') {
-      try { window.ChainCompute._notifyUIReady(); } catch(e) {}
+      try { window.ChainCompute._notifyUIReady(); } catch (e) {}
     }
   }
 
   /* ---------- Init ---------- */
   function init(){
     createCharts();
+    // create per-chart y-range controls (idempotent)
+    try { createPerChartScaleControls(); } catch(e){ console.warn('createPerChartScaleControls failed', e); }
+
     if (!Array.isArray(window.stages) || window.stages.length === 0) window.stages = initialChain();
     renderStages();
     setupUI();
     // flush pending if compute available
     if (window.ChainCompute && typeof window.ChainCompute._notifyUIReady === 'function') {
-      try { window.ChainCompute._notifyUIReady(); } catch(e) {}
+      try { window.ChainCompute._notifyUIReady(); } catch (e) {}
     } else {
       // ChainCompute may appear later; it should call ChainUI._flushPending()
     }
