@@ -385,3 +385,35 @@ button:focus, input:focus, select:focus, .s_name:focus { outline: 2px solid rgba
 /* Footer */
 footer { margin-top:12px; color:var(--muted); font-size:0.9rem; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
 .author a { color: var(--accent); text-decoration:none; }
+
+/* Coloration spécifique des inputs Ymin / Ymax (Gain / NF / OP1 / IP1) */
+#gainYMinInput, #gainYMaxInput,
+#nfYMinInput, #nfYMaxInput,
+#op1YMinInput, #op1YMaxInput,
+#ip1YMinInput, #ip1YMaxInput {
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.88rem;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25);
+  transition: background .12s, border-color .12s, box-shadow .12s;
+  background: linear-gradient(180deg, rgba(10,25,35,0.55), rgba(8,18,26,0.6));
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+/* Focus plus visible */
+#gainYMinInput:focus, #gainYMaxInput:focus,
+#nfYMinInput:focus, #nfYMaxInput:focus,
+#op1YMinInput:focus, #op1YMaxInput:focus,
+#ip1YMinInput:focus, #ip1YMaxInput:focus {
+  outline: 2px solid rgba(122,211,183,0.12);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+/* Variante: inputs vides (auto) légèrement atténuées pour indiquer 'auto' */
+#gainYMinInput:placeholder-shown, #gainYMaxInput:placeholder-shown,
+#nfYMinInput:placeholder-shown, #nfYMaxInput:placeholder-shown,
+#op1YMinInput:placeholder-shown, #op1YMaxInput:placeholder-shown,
+#ip1YMinInput:placeholder-shown, #ip1YMaxInput:placeholder-shown {
+  opacity: 0.95;
+}
