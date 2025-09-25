@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RF Multi-Verify — Analyse spectrale instantanée</title>
+
+  <!-- feuille de style principale -->
+  <link rel="stylesheet" href="../style/multi_verif.css">
+
+  <!-- libs -->
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+</head>
+<body data-theme="dark">
+  <header class="site-header">
+    <div class="header-inner" style="display:flex;align-items:center;gap:16px;justify-content:space-between;">
+      <a class="home-btn" href="../index.html">HUB</a>
+
+      <div style="flex:1;text-align:left;">
+        <h1 id="title">RF Multi-Verify — analyse instantanée</h1>
+        <div id="subtitle" class="small">Gain / NF / OP1dB / IP1dB en fonction de la fréquence — tout en temps réel</div>
+      </div>
+
+      <div id="topControls" style="display:flex;align-items:center;gap:8px;">
+        <input id="yamlFileInput" type="file" accept=".yaml,.yml" style="display:none">
+        <button id="btnImportYaml" class="ghost" title="Importer chaîne + bibliothèque">Importer</button>
+        <button id="btnExportYaml" class="ghost" title="Exporter chaîne + bibliothèque">Exporter</button>
+        <button id="btnDownloadExample" class="ghost" title="Télécharger exemple">Exemple</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <main class="main-container" style="padding:12px;">
+
+    <!-- TOP ROW: left = CHAIN (50%), right = PIRE CAS + RECAP (50%) -->
+    <div class="top-row" style="display:flex; gap:16px; align-items:stretch;">
+      <!-- LEFT: Chain (50%) -->
+      <section class="card left-panel" style="flex:1 1 50%; display:flex; flex-direction:column; min-width:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-weight:600;">Nombre d'étages :</label>
+            <button id="btnRemoveStage" class="ghost">−</button>
+            <input id="nStagesInput" type="number" min="0" max="100" step="1" value="5" style="width:72px;padding:6px;border-radius:6px;">
+            <button id="btnAddStage" class="ghost">+</button>
+            <button id="btnReset" class="ghost" style="margin-left:8px">Réinitialiser</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px">
+            <!-- default type selector pour nouvelle étape -->
+            <!-- <label class="small muted">Type par défaut :</label> -->
+            <!-- <select id="defaultStageType" style="width:120px;padding:6px;border-radius:6px;">
+              <option value="ampli">LNA</option>
+              <option value="filter">Filtre</option>
+              <option value="atten">Atténuateur</option>
+              <option value="switch">Switch</option>
+              <option value="mixer">Mixer</option>
+              <option value="custom">Custom</option>
+            </select> -->
+
+            <button id="btnManageLibrary" class="ghost">Gérer bibliothèque</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px; font-size:0.9rem; color:var(--muted);">
+          <strong>Chaîne (zone dédiée)</strong> — chaque composant affiche seulement les champs pertinents (gain/NF/insertion/OP1). Pour chaque champ : entrée manuelle ou choix d'une bibliothèque.
+        </div>
+
+        <!-- STAGES: vertical scroll, no horizontal scroll -->
+        <div id="stagesContainer" class="stages-scroll" style="overflow-y:auto; overflow-x:hidden; margin-top:12px; padding-right:8px;"></div>
+      </section>
+
+      <!-- RIGHT: Worst-case + recap (50%) -->
+      <section class="card right-panel" style="flex:1 1 50%; display:flex; flex-direction:column; min-width:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <h2 style="margin:0;font-size:1rem;">Pire cas (sur plage)</h2>
+            <div class="small muted">Affiche les min/max (pire cas) calculés sur la plage de fréquences</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label class="small muted">Plage active :</label>
+            <div id="activeRange" class="small" style="font-weight:700">—</div>
+          </div>
+        </div>
+
+        <!-- Pire cas summary (min / max) -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:12px;">
+          <div class="metric">
+            <div class="small">Gain min</div>
+            <div id="gainMin" class="val">— dB</div>
+          </div>
+          <div class="metric">
+            <div class="small">Gain max</div>
+            <div id="gainMax" class="val">— dB</div>
+          </div>
+          <div class="metric">
+            <div class="small">NF min</div>
+            <div id="nfMin" class="val">— dB</div>
+          </div>
+          <div class="metric">
+            <div class="small">NF max</div>
+            <div id="nfMax" class="val">— dB</div>
+          </div>
+          <div class="metric">
+            <div class="small">OP1 sortie min</div>
+            <div id="opMin" class="val">— dBm</div>
+          </div>
+          <div class="metric">
+            <div class="small">OP1 sortie max</div>
+            <div id="opMax" class="val">— dBm</div>
+          </div>
+          <div class="metric">
+            <div class="small">IP1 entrée min</div>
+            <div id="ipMin" class="val">— dBm</div>
+          </div>
+          <div class="metric">
+            <div class="small">IP1 entrée max</div>
+            <div id="ipMax" class="val">— dBm</div>
+          </div>
+        </div>
+
+        <!-- Récapitulatif table -->
+        <div style="margin-top:14px;">
+          <div class="sectionTitle">Récapitulatif de la chaîne</div>
+          <div class="table-wrap" style="max-height:220px; overflow:auto; margin-top:8px;">
+            <table id="tableStages">
+              <colgroup>
+                <col style="width:40px">
+                <col style="width:160px">
+                <col style="width:90px">
+                <col style="width:90px">
+                <col style="width:180px">
+                <col style="width:120px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Type / Nom</th>
+                  <th>G (dB)</th>
+                  <th>NF (dB)</th>
+                  <th>Source (valeur / fichier)</th>
+                  <th>OP1dB (dBm)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Export CSV bouton récap -->
+        <div style="display:flex;justify-content:flex-end;margin-top:10px;">
+          <button id="btnExportCsv" class="ghost">Exporter CSV</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- MIDDLE ROW: Frequency controls + 4 charts (2x2) -->
+    <div class="charts-section" style="margin-top:18px;">
+      <!-- Controls for frequency range -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <div class="freq-box">
+          <label>Fréquence min (Hz) :</label>
+          <input id="freqMinInput" type="number" value="1e8" step="1" style="width:160px">
+        </div>
+
+        <div class="freq-box">
+          <label>Fréquence max (Hz) :</label>
+          <input id="freqMaxInput" type="number" value="3e8" step="1" style="width:160px">
+        </div>
+
+        <div class="freq-box">
+          <label>Pas (Hz) :</label>
+          <input id="freqStepInput" type="number" value="1e7" step="1" style="width:120px">
+        </div>
+
+        <button id="btnComputeRange" class="btn" style="margin-left:8px">Calculer</button>
+        <div class="small muted" style="margin-left:12px">Calcul instantané activé — modifications recalculent automatiquement</div>
+      </div>
+
+      <!-- Charts grid 2x2 -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="chart-card card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div class="small">Gain(f)</div>
+            <div class="small muted">min: <span id="gainPlotMin">—</span> &nbsp; max: <span id="gainPlotMax">—</span></div>
+          </div>
+          <canvas id="chartGain" aria-label="Gain en fonction de la fréquence"></canvas>
+        </div>
+
+        <div class="chart-card card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div class="small">NF(f)</div>
+            <div class="small muted">min: <span id="nfPlotMin">—</span> &nbsp; max: <span id="nfPlotMax">—</span></div>
+          </div>
+          <canvas id="chartNF" aria-label="NF en fonction de la fréquence"></canvas>
+        </div>
+
+        <div class="chart-card card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div class="small">OP1dB out (f)</div>
+            <div class="small muted">min: <span id="opPlotMin">—</span> &nbsp; max: <span id="opPlotMax">—</span></div>
+          </div>
+          <canvas id="chartOP1" aria-label="OP1dB en fonction de la fréquence"></canvas>
+        </div>
+
+        <div class="chart-card card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div class="small">IP1dB in (f)</div>
+            <div class="small muted">min: <span id="ipPlotMin">—</span> &nbsp; max: <span id="ipPlotMax">—</span></div>
+          </div>
+          <canvas id="chartIP1" aria-label="IP1dB en fonction de la fréquence"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM: Bibliothèque visible full-width -->
+    <section id="librarySection" class="card" style="margin-top:18px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <h3 style="margin:0;font-size:1rem;">Bibliothèque de mesures (txt / dat / csv)</h3>
+          <div class="small muted">Glisser-déposer des fichiers ici (format strict: <strong>freq(Hz) valeur(dB)</strong> par ligne). Ex: <code>100000000 -1.2</code></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="libFileInput" type="file" accept=".s2p,.csv,.txt,.dat" multiple style="display:none;">
+          <button id="btnAddFiles" class="btn">Ajouter fichiers</button>
+          <button id="btnClearLibrary" class="ghost">Vider bibliothèque</button>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:10px; max-height:260px; overflow:auto;">
+        <table id="libraryTable">
+          <thead>
+            <tr><th>#</th><th>Nom</th><th>Type</th><th>Points</th><th>Fréq min → max (Hz)</th><th>Actions</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer style="padding:8px 12px;">
+    <div id="footer_text">RF Multi-Verify — interface optimisée pour usage fréquent</div>
+    <div class="author">François Bordas — <a href="mailto:francois.bordas@etu.univ-amu.fr">francois.bordas@etu.univ-amu.fr</a></div>
+  </footer>
+
+  <!-- App scripts (trois fichiers séparés) -->
+  <script defer src="../javascript/multi_chain_1.js"></script>
+  <script defer src="../javascript/multi_chain_2.js"></script>
+  <script defer src="../javascript/multi_library.js"></script>
+  <script defer src="../javascript/multi_io.js"></script>
+</body>
+</html>
