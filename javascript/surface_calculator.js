@@ -86,10 +86,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /* render summary (minimal) - NO copy button */
+  /* render summary (minimal) - NO copy button + total qty */
   function renderSummary() {
     const res = computeSurfaces();
     const tbody = els.summaryTableBody;
     tbody.innerHTML = '';
+
     res.rows.forEach((r, i) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -102,11 +104,25 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.appendChild(tr);
     });
 
-    els.totalSurfaceEl && (els.totalSurfaceEl.textContent = res.rows.length ? `${formatNum(res.total)} mm²` : '— mm²');
-    els.unitSurfaceEl && (els.unitSurfaceEl.textContent = res.rows.length ? `${formatNum(res.rows[0].unit)} mm²` : '— mm²');
+    // total surface
+    const totalSurfaceText = res.rows.length ? `${formatNum(res.total)} mm²` : '— mm²';
+    els.totalSurfaceEl && (els.totalSurfaceEl.textContent = totalSurfaceText);
 
+    // total qty (somme des qty)
+    const totalQty = res.rows.reduce((acc, rr) => acc + (Number(rr.qty) || 0), 0);
+    const totalQtyText = res.rows.length ? totalQty.toLocaleString() : '—';
+    const totalQtyEl = document.getElementById('totalQty') || null;
+    if (totalQtyEl) totalQtyEl.textContent = totalQtyText;
+    else {
+      // si l'élément n'existe pas, on le crée discrètement dans le DOM (optionnel)
+      // console.warn('Element #totalQty not found — ignore or add it to HTML to display total quantity.');
+    }
+
+    // unit surface (optional element) and dataset for calculator fallback
+    els.unitSurfaceEl && (els.unitSurfaceEl.textContent = res.rows.length ? `${formatNum(res.rows[0].unit)} mm²` : '— mm²');
     document.body.dataset.totalSurface = String(res.total || 0);
   }
+
 
   /* components list creation */
   function makeRowElement(data, idx) {
