@@ -98,6 +98,43 @@ button.ghost:hover { background: rgba(74,163,224,0.06); }
   .inputs-table-header { grid-template-columns: 36px 1fr 84px 84px 84px 68px 56px; }
 }
 
+/* Largeur des colonnes du tableau de résumé */
+.summary-table th:nth-child(1),
+.summary-table td:nth-child(1) {
+  width: 30px;   /* colonne # */
+}
+
+.summary-table th:nth-child(2),
+.summary-table td:nth-child(2) {
+  width: 160px;  /* Nom */
+}
+
+.summary-table th:nth-child(3),
+.summary-table td:nth-child(3) {
+  width: 100px;  /* Couronne */
+}
+
+.summary-table th:nth-child(4),
+.summary-table td:nth-child(4) {
+  width: 60px;   /* Qté */
+}
+
+.summary-table th:nth-child(5),
+.summary-table td:nth-child(5) {
+  width: 140px;  /* Surface totale */
+}
+
+.summary-table th:nth-child(6),
+.summary-table td:nth-child(6) {
+  width: 40px;   /* bouton action (suppr) */
+}
+
+.metric {
+  flex: 1;
+  text-align: center;
+}
+
+
 /* Component rows */
 .components-list { max-height: 520px; overflow: auto; padding-right:6px; }
 .component-row {
