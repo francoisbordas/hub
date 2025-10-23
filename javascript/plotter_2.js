@@ -362,7 +362,7 @@
       '    minor grid style={dotted, gray!50},',
       '    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=2}',
       ']'
-    ].join('\\n');
+    ].join('\n');
 
 
     const blocks = [];
@@ -380,7 +380,7 @@
         };
         const [r,g,b] = rgb(colorHex);
         const blockLines = [];
-        blockLines.push(`\\addplot[only marks, mark=triangle, mark size=0.8, color={rgb,255:red,${r};green,${g};blue,${b}}] table {`);
+        blockLines.push(`\\addplot[mark=triangle*, mark size=1, color={rgb,255:red,${r};green,${g};blue,${b}}] table {`);
         blockLines.push('x y');
         for (let rIdx = start; rIdx < rows.length; rIdx++) {
           const xr = (rows[rIdx][xCol] || '').toString().trim();
@@ -435,5 +435,4 @@
   setStatus('Plotter (module 2) prêt', 1200);
 
 })();
-
 
