@@ -354,15 +354,16 @@
       '    grid=both,',
       '    width=10cm,',
       '    height=8cm,',
-      '    % xmin=30, xmax=1000,
-      '    % ymin=-80, ymax=0,
-      '    % xtick{1, ..., 1000},
-      '    % ytick{1,...100},
+      '    % xmin=30, xmax=1000,',
+      '    % ymin=-80, ymax=0,',
+      '    % xtick={1, ..., 1000},',
+      '    % ytick={1, ..., 100},',
       '    major grid style={dashed, gray!30},',
       '    minor grid style={dotted, gray!50},',
       '    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=2}',
       ']'
-    ].join('\n');
+    ].join('\\n');
+
 
     const blocks = [];
 
@@ -434,4 +435,5 @@
   setStatus('Plotter (module 2) prêt', 1200);
 
 })();
+
 
