@@ -354,6 +354,10 @@
       '    grid=both,',
       '    width=10cm,',
       '    height=8cm,',
+      '    % xmin=30, xmax=1000,
+      '    % ymin=-80, ymax=0,
+      '    % xtick{1, ..., 1000},
+      '    % ytick{1,...100},
       '    major grid style={dashed, gray!30},',
       '    minor grid style={dotted, gray!50},',
       '    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=2}',
@@ -363,7 +367,7 @@
     const blocks = [];
 
     if (!yCols || !yCols.length) {
-      blocks.push('\\addplot[only marks, mark=triangle, mark size=0.8, color=blue] table {', 'x y', '% données ici', '};', '\\addlegendentry{ }');
+      blocks.push('\\addplot[ mark=triangle*, mark size=1, color=blue] table {', 'x y', '% données ici', '};', '\\addlegendentry{ }');
     } else {
       for (let si = 0; si < yCols.length; si++) {
         const yi = yCols[si];
@@ -430,3 +434,4 @@
   setStatus('Plotter (module 2) prêt', 1200);
 
 })();
+
