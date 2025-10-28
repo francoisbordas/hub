@@ -1,0 +1,419 @@
+/* multi_verif.css — version enrichie (couleurs pour index / selects / inputs) */
+/* Variables globales (palette) */
+:root{
+  --bg: #071026;
+  --card-bg: #081428;
+  --panel-border: #0f2b3a;
+  --text: #e6eef6;
+  --muted: #9aa3b2;
+  --accent: #4aa3e0;
+  --accent-strong: #7ad3b7;
+  --mono-bg: #06101a;
+  --danger: #e06b6b;
+
+  /* type colors */
+  --type-ampli: #4a90e2;        /* bleu */
+  --type-filter: #7ad3b7;       /* vert */
+  --type-attenuator: #e06b6b;   /* rouge */
+  --type-mixer: #f5a623;        /* orange */
+  --type-switch: #9b59b6;       /* violet */
+  --type-custom: #334455;       /* neutre */
+
+  --radius: 12px;
+  --gap: 12px;
+  --btn-h: 36px;
+  --max-page-width: 1400px;
+
+  /* size tokens */
+  --field-w: 100px;
+  --name-w: 170px;
+
+  /* chart tweaks: increase contrast pour fond foncé */
+  --chart-grid: rgba(255,255,255,0.10);
+  --chart-axis: rgba(255,255,255,0.88);
+  --chart-line: rgba(122,211,183,0.95);
+  --chart-line-2: rgba(74,163,224,0.95);
+}
+
+/* Base reset */
+* { box-sizing: border-box; }
+html,body { height:100%; }
+body {
+  margin: 0;
+  padding: 16px;
+  font-family: "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg,var(--bg),#04101a 140%);
+  color: var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  font-size:14px;
+  line-height:1.4;
+}
+
+/* Header / top controls */
+.site-header { margin-bottom:12px; }
+.header-inner { display:flex; align-items:center; gap:16px; max-width:var(--max-page-width); margin:0 auto; }
+
+/* Home button */
+.home-btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border-radius:10px;
+  background: linear-gradient(180deg,#6fc0ff,#4aa3e0);
+  color:#022831; font-weight:700; text-decoration:none;
+  box-shadow:0 6px 14px rgba(30,120,160,0.12); height:var(--btn-h);
+}
+.home-btn:hover { transform: translateY(-2px); }
+
+/* Main container */
+.main-container { max-width: var(--max-page-width); margin: 0 auto; }
+
+/* Panels */
+.left-panel, .right-panel {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), var(--card-bg));
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+
+/* ----- Patch: meilleure lisibilité des selects/options + hauteurs ----- */
+
+/* Fix rapide : forcer couleur et fond des select/options */
+select, select option, select optgroup, .s_type, .field-lib select {
+  color: var(--text) !important;
+  background-color: var(--card-bg) !important;
+}
+
+/* Certains moteurs WebKit respectent -webkit-text-fill-color */
+select, option { -webkit-text-fill-color: var(--text) !important; }
+
+/* Focus visible */
+select:focus, .s_type:focus, .field-lib select:focus {
+  outline: 2px solid rgba(122,211,183,0.12);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Option: certaines plateformes limitent les custom styles, mais ces règles aident la plupart des navigateurs */
+option {
+  color: var(--text) !important;
+  background: var(--card-bg) !important;
+}
+
+/* Focus / active pour le select (contraste visible lors de l'ouverture) */
+select:focus, .field-lib select:focus {
+  outline: 2px solid rgba(122,211,183,0.12);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  color: var(--text);
+}
+
+/* 2) Uniformiser la hauteur de boutons/inputs/selects du header/contrôles */
+:root { --controls-h: 36px; } /* règle globale facile à ajuster */
+
+button, input[type="number"], input[type="text"], select {
+  height: var(--controls-h);
+  line-height: calc(var(--controls-h) - 4px);
+  padding: 6px 10px;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
+/* Garder home button légèrement plus grand si souhaité */
+.home-btn { height: var(--btn-h); }
+
+/* 3) Styliser l'input "Nombre d'étages" comme badge et aligner verticalement */
+#nStagesInput {
+  height: var(--controls-h);
+  padding: 6px 8px;
+  display: inline-block;
+  text-align: center;
+  font-weight:700;
+}
+
+/* 4) Ajuster la hauteur globale de la "box" gauche (chaîne) si tu veux la rendre plus grande/plus petite */
+/* Modifier ces valeurs change la taille globale de la zone des étages : */
+
+/* 5) Petit fix : si tu veux éviter le blanc-on-white sur le menu natif dans certains UIs,
+   tu peux masquer l'apparence native et simuler une flèche (optionnel) */
+/* .custom-select { appearance: none; -webkit-appearance: none; background-image: url('/path/to/arrow.svg'); background-repeat:no-repeat; background-position: right 10px center; padding-right: 30px; } */
+
+/* 6) Si tu veux forcer que les selects de type stage aient texte sombre sur badge clair (ex: index color) */
+.stage-card[data-type="ampli"] .s_type,
+.stage-card[data-type="filter"] .s_type,
+.stage-card[data-type="atten"] .s_type,
+.stage-card[data-type="mixer"] .s_type,
+.stage-card[data-type="switch"] .s_type {
+  color: #fff;
+}
+
+/* 7) Optionnel : augmenter la lisibilité des options sélectionnées (sous forme de highlight) */
+select option:checked {
+  background: rgba(122,211,183,0.12);
+  color: var(--text);
+}
+
+
+
+
+
+
+
+
+
+
+
+/* Left panel specifics */
+.left-panel {
+  flex: 0 0 50%;
+  display:flex;
+  flex-direction:column;
+  min-height: 550px;
+  max-height: 85vh;
+  overflow: hidden;
+}
+
+/* Small helper classes */
+.small { font-size:0.88rem; color:var(--muted); }
+.muted { color:var(--muted); }
+
+/* Buttons */
+button {
+  padding: 6px 10px; border-radius: 8px; border: 0;
+  background: var(--accent); color:#fff; cursor:pointer;
+  font-size:0.95rem;
+}
+button.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid rgba(74,163,224,0.12);
+  padding: 6px 10px;
+}
+button.btn { background: linear-gradient(180deg,var(--accent), #3a87bf); }
+
+/* Stage cards */
+.stage-card {
+  background: rgba(0,0,0,0.12);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  transition: transform .08s, box-shadow .1s;
+  position: relative;
+  border-left: 4px solid var(--type-ampli);
+}
+.stage-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+.stage-card[data-type="ampli"] { border-left-color: var(--type-ampli); }
+.stage-card[data-type="filter"] { border-left-color: var(--type-filter); }
+.stage-card[data-type="atten"] { border-left-color: var(--type-attenuator); }
+.stage-card[data-type="mixer"] { border-left-color: var(--type-mixer); }
+.stage-card[data-type="switch"] { border-left-color: var(--type-switch); }
+.stage-card[data-type="custom"] { border-left-color: var(--type-custom); }
+
+/* Compact variant (template) */
+.stage-card.compact { padding:10px 12px; display:block; }
+
+/* Header inside stage */
+.stage-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.stage-name-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.stage-index {
+  background: rgba(16,45,61,0.9);
+  padding:3px 8px; border-radius:8px; font-size:0.82rem; color:#d1f1e7;
+  font-weight:700;
+  min-width:36px; text-align:center;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+/* Color the index badge depending on the stage type (clear, readable color + dark text) */
+.stage-card[data-type="ampli"] .stage-index { background: linear-gradient(180deg, rgba(74,144,226,0.95), rgba(46,104,164,0.95)); color:#041825; }
+.stage-card[data-type="filter"] .stage-index { background: linear-gradient(180deg, rgba(122,211,183,0.95), rgba(74,163,130,0.95)); color:#04221a; }
+.stage-card[data-type="atten"] .stage-index { background: linear-gradient(180deg, rgba(224,107,107,0.95), rgba(180,60,60,0.95)); color:#2b0a0a; }
+.stage-card[data-type="mixer"] .stage-index { background: linear-gradient(180deg, rgba(245,166,35,0.95), rgba(200,120,10,0.95)); color:#2b1600; }
+.stage-card[data-type="switch"] .stage-index { background: linear-gradient(180deg, rgba(155,89,182,0.95), rgba(120,48,140,0.95)); color:#2b0b2b; }
+.stage-card[data-type="custom"] .stage-index { background: linear-gradient(180deg, rgba(51,68,85,0.95), rgba(30,40,50,0.95)); color:#e6eef6; }
+
+.s_name {
+  background:transparent; border:0; outline:none; color:var(--accent); font-weight:600; width:var(--name-w);
+}
+.s_name:focus { border-bottom:1px dashed rgba(122,211,183,0.4); }
+
+/* Stage type select: colored background according to parent .stage-card[data-type] */
+.s_type {
+  padding:6px 8px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:rgba(0,0,0,0.06); color:var(--text);
+  min-width:120px;
+}
+
+.stage-card[data-type="ampli"] .s_type { background: linear-gradient(180deg, rgba(74,144,226,0.12), rgba(74,144,226,0.06)); color: #ffffff; border-color: rgba(74,144,226,0.25); }
+.stage-card[data-type="filter"] .s_type { background: linear-gradient(180deg, rgba(122,211,183,0.12), rgba(122,211,183,0.06)); color: #ffffff; border-color: rgba(122,211,183,0.25); }
+.stage-card[data-type="atten"] .s_type { background: linear-gradient(180deg, rgba(224,107,107,0.12), rgba(224,107,107,0.06)); color:#ffffff; border-color: rgba(224,107,107,0.25); }
+.stage-card[data-type="mixer"] .s_type { background: linear-gradient(180deg, rgba(245,166,35,0.12), rgba(245,166,35,0.06)); color:#ffffff; border-color: rgba(214, 214, 214, 0.25); }
+.stage-card[data-type="switch"] .s_type { background: linear-gradient(180deg, rgba(155,89,182,0.12), rgba(155,89,182,0.06)); color:#ffffff; border-color: rgba(155,89,182,0.25); }
+.stage-card[data-type="custom"] .s_type { background: linear-gradient(180deg, rgba(51,68,85,0.06), rgba(51,68,85,0.02)); color: #ffffff; border-color: rgba(255,255,255,0.03); }
+
+/* Stage controls grid (compact) */
+.stage-controls.compact-grid {
+  display:grid;
+  grid-template-columns: 1fr 120px 150px;
+  gap:8px;
+  align-items:center;
+  margin-top:6px;
+}
+.field-label { color:var(--muted); font-size:0.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Inputs inside stage */
+.field-input input[type="number"], .field-input input[type="text"] {
+  width:100%;
+  background: var(--mono-bg); color:var(--text); border:1px solid var(--panel-border);
+  padding:6px 8px; border-radius:8px; font-size:0.9rem;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25);
+}
+
+/* Library select styling (clear visual) */
+.field-lib select {
+  width:100%; padding:6px 8px; border-radius:8px; background: rgba(255,255,255,0.02); color:var(--text); border:1px solid rgba(255,255,255,0.04);
+}
+
+/* Make library selects slightly tinted when a lib is present (JS can set a class if desired) */
+.field-lib select.has-lib { box-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+
+/* Drag handle */
+.drag-handle { width:20px; height:20px; display:inline-grid; place-items:center; cursor:grab; margin-left:6px; }
+.drag-handle .bars span { display:block; height:2px; width:12px; background: rgba(255,255,255,0.14); border-radius:2px; margin:1px 0; }
+
+/* Right-panel metrics */
+.right-panel .metric {
+  background: rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.03);
+  border-radius:8px;
+  padding:8px;
+  text-align:center;
+  margin-bottom:6px;
+}
+.right-panel .metric .val { font-weight:700; color:var(--accent-strong); font-size:1.05rem; margin-top:4px; }
+
+
+/* Allow the stages container to grow and use the remaining vertical space in the left panel */
+.left-panel {
+  display: flex;           /* déjà présent, safe */
+  flex-direction: column;  /* déjà présent */
+  min-height: 0;           /* allow children to shrink properly in flex context */
+}
+
+/* The scrollable stages area must take remaining space (grow/shrink) */
+#stagesContainer {
+  flex: 1 1 auto;    /* IMPORTANT: occupy remaining vertical space */
+  min-height: 0;     /* IMPORTANT: lets the element be constrained by flex parent's height */
+  overflow-y: auto;  /* keep vertical scrollbar when content exceed space */
+  overflow-x: hidden;
+  padding-right: 8px;
+  margin-top: 12px;
+}
+
+/* If you have a container wrapper around controls above stagesContainer,
+   ensure it does not force a large height (avoid fixed heights there). */
+
+
+/* Recap table */
+.table-wrap { border-radius:8px; border:1px solid rgba(255,255,255,0.03); margin-top:8px; overflow:auto; max-height:220px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { position:sticky; top:0; background: linear-gradient(180deg, rgba(0,0,0,0.12), var(--card-bg)); color:var(--accent); padding:8px; text-align:center; }
+tbody td { padding:8px; border-top:1px solid rgba(255,255,255,0.02); color:var(--text); text-align:center; }
+
+/* Charts */
+.charts-section { margin-top:18px; }
+.charts-section .chart-card { padding:10px; border-radius:10px; background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02)); border:1px solid var(--panel-border); }
+.charts-section canvas { width:100% !important; height:260px !important; display:block; background: transparent; }
+
+/* Improve visual contrast around charts */
+.chart-card::after {
+  content: '';
+  position:absolute; inset:0; pointer-events:none; border-radius:10px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.012);
+}
+
+/* Plot min/max badges */
+.charts-section .small.muted { font-size:0.9rem; }
+
+/* Library area */
+#librarySection {
+  margin-top:18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), var(--card-bg));
+  border:1px solid var(--panel-border);
+  border-radius:12px;
+  padding:12px;
+}
+#librarySection .table-wrap { max-height:260px; overflow:auto; margin-top:10px; }
+
+/* Frequency boxes styling (color the inputs as requested) */
+.freq-box { background: rgba(10,30,40,0.35); padding:8px 10px; border-radius:8px; border:1px solid rgba(122,211,183,0.06); display:flex; align-items:center; gap:8px; }
+.freq-box label { color:var(--muted); font-size:0.9rem; min-width:120px; }
+
+/* Color the numeric frequency inputs for better visibility */
+#freqMinInput, #freqMaxInput, #freqStepInput {
+  width:160px; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(15,40,55,0.6), rgba(10,30,40,0.6));
+  color: var(--text); font-weight:600;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
+}
+
+/* Number-of-stages input (badge-like) */
+#nStagesInput {
+  width:72px; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, rgba(122,211,183,0.12), rgba(122,211,183,0.06));
+  color: #cee4e9; font-weight:700;
+  text-align:center;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25);
+}
+
+/* Make selects inside header slightly tinted */
+#defaultStageType, #defaultStageType:focus { background: rgba(255,255,255,0.02); color:var(--text); border:1px solid rgba(255,255,255,0.04); padding:6px 8px; border-radius:8px; }
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .top-row { flex-direction: column; }
+  .left-panel, .right-panel { flex-basis: auto; width:100%; }
+  .charts-section .chart-card canvas { height:220px !important; }
+  .stage-controls.compact-grid { grid-template-columns: 1fr 120px 120px; }
+}
+
+/* Misc helpers */
+.insert-marker { height:6px; border-top:3px dashed rgba(13,214,130,0.8); margin:8px 0; border-radius:2px; pointer-events:none; }
+.stage-card.drag-over { outline: 2px dashed rgba(13,214,130,0.6); }
+button:focus, input:focus, select:focus, .s_name:focus { outline: 2px solid rgba(122,211,183,0.12); outline-offset: 2px; }
+
+/* Footer */
+footer { margin-top:12px; color:var(--muted); font-size:0.9rem; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.author a { color: var(--accent); text-decoration:none; }
+
+/* Coloration spécifique des inputs Ymin / Ymax (Gain / NF / OP1 / IP1) */
+#gainYMinInput, #gainYMaxInput,
+#nfYMinInput, #nfYMaxInput,
+#op1YMinInput, #op1YMaxInput,
+#ip1YMinInput, #ip1YMaxInput {
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.88rem;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.25);
+  transition: background .12s, border-color .12s, box-shadow .12s;
+  background: linear-gradient(180deg, rgba(10,25,35,0.55), rgba(8,18,26,0.6));
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+/* Focus plus visible */
+#gainYMinInput:focus, #gainYMaxInput:focus,
+#nfYMinInput:focus, #nfYMaxInput:focus,
+#op1YMinInput:focus, #op1YMaxInput:focus,
+#ip1YMinInput:focus, #ip1YMaxInput:focus {
+  outline: 2px solid rgba(122,211,183,0.12);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+
+/* Variante: inputs vides (auto) légèrement atténuées pour indiquer 'auto' */
+#gainYMinInput:placeholder-shown, #gainYMaxInput:placeholder-shown,
+#nfYMinInput:placeholder-shown, #nfYMaxInput:placeholder-shown,
+#op1YMinInput:placeholder-shown, #op1YMaxInput:placeholder-shown,
+#ip1YMinInput:placeholder-shown, #ip1YMaxInput:placeholder-shown {
+  opacity: 0.95;
+}

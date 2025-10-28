@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Split Columns — Outil de séparation</title>
+  <link rel="stylesheet" href="../style/columns_splitter.css">
+</head>
+<body data-theme="dark">
+  <div class="app">
+
+    <header class="topbar">
+      <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+      <div class="branding">
+        <h1>Columns Splitter</h1>
+        <div class="subtitle">Colle ton texte → détecte le séparateur → sélectionne et copie les colonnes.</div>
+      </div>
+
+      <div class="top-controls" role="region" aria-label="Paramètres">
+        <div class="control-group">
+          <label for="sepSelect">Séparateur :</label>
+          <select id="sepSelect">
+            <option value="auto" selected>Détection automatique</option>
+            <option value=",">Virgule (,)</option>
+            <option value=";">Point-virgule (;)</option>
+            <option value=" ">Espace</option>
+            <option value="\t">Tabulation</option>
+            <option value="|">Pipe (|)</option>
+            <option value="/">Slash (/)</option>
+            <option value=".">Point (.)</option>
+            <option value="custom">Personnalisé…</option>
+          </select>
+        </div>
+
+        <div class="control-group mini" id="customSepGroup" hidden>
+          <label for="customSep">Séparateur personnalisé :</label>
+          <input id="customSep" type="text" maxlength="3" placeholder=";" />
+        </div>
+
+        <div class="btn-group">
+          <button id="btnDetect" class="primary">Détecter</button>
+          <button id="btnParse" class="primary">Analyser</button>
+          <button id="btnClear" class="ghost">Effacer</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content three-col">
+      <!-- GAUCHE : zone de collage -->
+      <section class="card pane input-pane" aria-label="Entrée">
+        <div class="pane-title">1) Coller le texte</div>
+        <textarea id="inputText" class="big-textarea" placeholder="Collez ici votre texte ou tableau (CSV, TSV, espaces...)&#10;Exemple :&#10;freq_rf_MHz,gain_dB,nf_dB,ip1db_in_dBm&#10;5500.0,30.432799,7.924361,-13.719973"></textarea>
+        <div class="hint small">Lignes vides et lignes commençant par # ou ! seront ignorées.</div>
+      </section>
+
+      <!-- CENTRE : aperçu / résultat après détection -->
+      <section class="card pane preview-pane" aria-label="Aperçu">
+        <div class="pane-title">2) Aperçu & détection</div>
+
+        <div id="detectedInfo" class="hint small">Séparateur détecté : —</div>
+
+        <div id="tableWrapper" class="table-wrapper" aria-live="polite">
+          <div class="empty-state">Aucune donnée analysée</div>
+        </div>
+
+        <div class="hint small" style="margin-top:8px;">
+          Aperçu limité aux premières lignes. Si une ligne d'en-tête est détectée, elle est utilisée comme noms de colonnes.
+        </div>
+      </section>
+
+      <!-- DROITE : choix des colonnes à copier -->
+      <section class="card pane cols-pane" aria-label="Colonnes">
+        <div class="pane-title">3) Choisir les colonnes</div>
+
+        <div id="columnsList" class="columns-list hint small">—</div>
+
+        <div class="btn-group" style="margin-top:8px;">
+          <button id="btnCopyCols" class="primary">Copier colonnes sélectionnées</button>
+          <button id="btnDownloadCols" class="ghost">Télécharger sélection</button>
+        </div>
+
+        <div id="status" class="status" style="margin-top:8px">—</div>
+      </section>
+    </main>
+
+  </div>
+
+  <script defer src="../javascript/columns_splitter.js"></script>
+</body>
+</html>

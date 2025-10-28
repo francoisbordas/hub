@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>RF Chain Calculator — calcul instantané</title>
+  <link rel="stylesheet" href="../style/architecture_verif.css">
+</head>
+<body data-theme="dark">
+  <header>
+    <div style="display:flex; align-items:center; gap:16px; justify-content:space-between;">
+      
+      <!-- Bouton Accueil à gauche -->
+      <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+      
+      <!-- Bloc titre -->
+      <div style="flex:1; text-align:left;">
+        <h1 id="title">RF Chain Calculator — calcul instantané</h1>
+        <div id="subtitle" class="small">
+          Gain / NF / OP1dB & IP1dB — interface interactive
+        </div>
+      </div>
+      
+      <!-- Contrôles YAML à droite -->
+      <div id="yamlControls" style="margin-top:8px; display:flex; gap:8px; align-items:left;">
+        <input id="yamlFileInput" type="file" accept=".yaml,.yml" style="display:none;">
+        <button id="btnImportYaml" class="ghost" title="Importer YAML">Importer YAML</button>
+        <button id="btnExportYaml" class="ghost" title="Exporter YAML">Exporter YAML</button>
+        <button id="btnDownloadExample" class="ghost" title="Télécharger exemple">Télécharger exemple</button>
+        <span id="yamlStatus" class="small" style="margin-left:8px;"></span>
+      </div>
+      
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Colonne gauche : Étages -->
+    <div class="card">
+      <div class="controls">
+        <label id="label_n">Nombre d'étages :</label>
+
+        <div style="display:inline-flex;align-items:center;gap:6px;">
+          <button id="btnRemove" class="ghost" title="Retirer un étage">−</button>
+          <input id="nStagesInput" type="number" inputmode="numeric" min="0" max="100" step="1"
+                value="5" style="width:64px;padding:6px;border-radius:6px;border:1px solid var(--panel-border);background:var(--mono-bg);color:var(--text)">
+          <button id="btnAdd" class="ghost" title="Ajouter un étage">+</button>
+        </div>
+
+        <button id="btnReset" class="ghost" style="margin-left:8px">Réinitialiser</button>
+        <span id="note_instant" class="small" style="margin-left:8px">Les calculs sont instantanés.</span>
+      </div>
+
+      <div id="stagesContainer" class="stages-scroll" aria-live="polite"></div>
+    </div>
+    <!-- Colonne centrale : Résultats -->
+    <div class="card">
+      <div class="results-grid">
+        <div class="metric"><div class="small" id="label_gain">Gain total</div><div id="gainTotal" class="val">— dB</div></div>
+        <div class="metric"><div class="small" id="label_nf">NF total</div><div id="nfTotal" class="val">— dB</div></div>
+        <div class="metric"><div class="small" id="label_op">OP1dB sortie</div><div id="op1dB_out" class="val">— dBm</div></div>
+        <div class="metric"><div class="small" id="label_ip">IP1dB entrée</div><div id="ip1dB_in" class="val">— dBm</div></div>
+      </div>
+      <!-- Tableau récapitulatif -->
+      <div class="sectionTitle" id="table_title">Tableau récapitulatif</div>
+        <div class="table-wrap">
+          <table id="tableStages">
+            <colgroup>
+              <col style="width: 40px;">   <!-- # -->
+              <col style="width: 100px;">  <!-- Type -->
+              <col style="width: 70px;">   <!-- Gain -->
+              <col style="width: 60px;">  <!-- NF/Insertion -->
+              <col style="width: 100px;">  <!-- OP1dB -->
+            </colgroup>
+
+            <thead>
+              <tr>
+                <th>#</th>
+                <th id="col_type">Type</th>
+                <th id="col_gain">G (dB)</th>
+                <th id="col_nf">NF (dB)</th>
+                <th id="col_op">OP1dB (dBm)</th>
+              </tr>
+            </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+      </div>
+    <!-- Colonne droite : Équations et rappels -->
+    <div class="card">
+      <div class="sectionTitle" id="eq_title">Équations (simplifiées)</div>
+      <div class="eq-block" id="eq_gain">
+        <div class="eq-title">Gain total (dB)</div>
+        <div class="eq-line">G<sub>tot</sub>(dB) = Σ G<sub>i</sub>(dB)</div>
+        <div class="small" id="eq_gain_note">(pour un filtre utiliser G = −InsertionLoss)</div>
+      </div>
+      <div class="eq-block" id="eq_nf">
+        <div class="eq-title">NF total (Friis)</div>
+        <div class="eq-line">NF<sub>tot</sub> = 10·log<sub>10</sub>(NF<sub>1</sub><sup>lin</sup> + (NF<sub>2</sub><sup>lin</sup> − 1)/G<sub>1</sub><sup>lin</sup> + (NF<sub>3</sub><sup>lin</sup> − 1)/(G<sub>1</sub><sup>lin</sup>·G<sub>2</sub><sup>lin</sup>) + ... )</div>
+        <div class="small" id="eq_nf_note">avec NF<sup>lin</sup> = 10<sup>NF(dB)/10</sup> et G<sup>lin</sup> = 10<sup>G(dB)/10</sup>.</div>
+      </div>
+      <div class="eq-block" id="eq_p1">
+        <div class="eq-title">OP1dB combiné (approx.)</div>
+        <div class="eq-line">1 / P<sub>tot</sub> = Σ<sub>i</sub> 1 / (P<sub>1,i</sub> · G<sub>after,i</sub>)</div>
+        <div class="eq-line">OP1dB<sub>out</sub> (dBm) = 10·log<sub>10</sub>(P<sub>tot</sub>)</div>
+        <div class="small" id="eq_p1_note">P en mW (conversion dBm→mW utilisée).</div>
+      </div>
+      <div class="eq-block" id="eq_ip">
+        <div class="eq-title">IP1dB d'entrée</div>
+        <div class="eq-line">IP1dB<sub>in</sub> = OP1dB<sub>out</sub> − G<sub>tot</sub>(dB)</div>
+      </div>
+      <div class="sectionTitle" id="help_title" style="margin-top: 20px;">Rappels par type</div>
+      <ul style="padding-left: 16px;">
+        <li><b id="help_filter"></b> : <span id="help_filter_desc"></span></li>
+        <li><b id="help_lna"></b> : <span id="help_lna_desc"></span></li>
+        <li><b id="help_att"></b> : <span id="help_att_desc"></span></li>
+        <li><b id="help_mixer"></b> : <span id="help_mixer_desc"></span></li>
+      </ul>
+    </div>
+  </div>
+  <!-- YAML parser (js-yaml) -->
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+<!-- zone d'import/export (dans le footer pour rester simple) -->
+<script>
+  // buttons seront créés en JS dans le DOM, mais on place un <div id="yamlControls"> dans le footer
+</script>
+
+<script defer src="../javascript/architecture_verif.js"></script>
+
+  <footer style="padding: 8px 12px;">
+
+    <div id="footer_text">Document interactif — calculs instantanés pour conception de chaîne RF.</div>
+    <div class="author">François Bordas — <a href="mailto:francois.bordas@etu.univ-amu.fr">francois.bordas@etu.univ-amu.fr</a></div>
+  </footer>
+</body>
+</html>

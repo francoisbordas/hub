@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tool Hub — Interfaces & utilitaires</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style/index.css">
+</head>
+<body>
+  <div class="site">
+    <header class="site-header">
+      <div class="heading">
+        <h1>Tool Hub</h1>
+        <p class="lead">Accès centralisé aux interfaces web et utilitaires.</p>
+      </div>
+    </header>
+
+    <main class="hub" role="main" aria-labelledby="hub-title">
+      <!-- Carte de ressources -->
+      <aside class="download-card" aria-labelledby="dl-title">
+        <div class="icon" aria-hidden="true">📦</div>
+        <h3 id="dl-title">Ressources & téléchargements</h3>
+        <p>Liens vers archives, documentations ou dépôts.</p>
+
+        <div class="actions">
+          <a class="btn" id="download-hub" href="#" target="_blank" rel="noopener">Ouvrir</a>
+        </div>
+      </aside>
+
+      <!-- Section des applications -->
+      <section class="right" aria-labelledby="apps-title">
+        <div class="right-head">
+          <h2 id="apps-title">Interfaces & outils</h2>
+          <p class="muted">Cliquez sur une tuile pour ouvrir l’outil dans un nouvel onglet.</p>
+        </div>
+
+        <div id="cards" class="card-row" role="list" aria-live="polite">
+          <!-- Les cartes seront générées dynamiquement -->
+        </div>
+
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>Tool Hub — Navigation centralisée</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Fallback JSON (embarqué) -->
+  <script id="tools-fallback" type="application/json">
+  [
+    {"title":"Plotter","desc":"Tracer des graphes depuis des données tabulaires ; export CSV/LaTeX/PNG... .","href":"html/plotter.html","icon":"📈","target":"_blank"},
+    {"title":"Columns Splitter","desc":"Scinder et prévisualiser des colonnes depuis du texte/CSV.","href":"html/columns_splitter.html","icon":"🧩","target":"_blank"},
+    {"title":"S2P Converter","desc":".s2p → table lisible (Hz, S-params, dB/deg).","href":"html/s2p_converter.html","icon":"🔀","target":"_blank"},
+    {"title":"Text Comparator","desc":"Comparer deux fichiers texte et visualiser les différences.","href":"html/text_comparator.html","icon":"📄","target":"_blank"},
+    {"title":"SFDR Calculator","desc":"Calcul du SFDR, IIP3, NF, et scénarios de performance.","href":"html/sfdr_calculator.html","icon":"📶","target":"_blank"},
+    {"title":"Spurious Finder","desc":"Détection des produits de mélange et spurious sur une plage.","href":"html/spurious_finder.html","icon":"📡","target":"_blank"},
+    {"title":"Architecture Verif","desc":"Calculer gain, NF et OP1dB d'une chaîne RF en cascade.","href":"html/architecture_verif.html","icon":"⚙️","target":"_blank"},
+    {"title":"Multi-Verif","desc":"Calculer gain, NF et OP1dB d'une chaîne RF en Fréquence.","href":"html/multi_verif.html","icon":"🔎","target":"_blank"},
+    {"title":"Surface Calculator","desc":"Calculer largeur, longueur et surface en mm² avec visualisation du rectangle.","href":"html/surface_calculator.html","icon":"📐","target":"_blank"}
+
+
+  ]
+  </script>
+
+  <!-- Script de chargement des outils -->
+  <script>
+  (function () {
+    const container = document.getElementById('cards');
+    const fallbackEl = document.getElementById('tools-fallback');
+    const fallback = JSON.parse(fallbackEl.textContent || '[]');
+
+    // Helpers
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+    function makeCard(tool){
+      const a = document.createElement('a');
+      a.className = 'app-card';
+      a.href = tool.href || '#';
+      a.target = tool.target || '_self';
+      if (a.target === '_blank') a.rel = 'noopener';
+      a.role = 'listitem';
+      a.innerHTML = `
+        <div class="app-icon" aria-hidden="true">${escapeHtml(tool.icon || '🔧')}</div>
+        <div class="app-meta">
+          <h4>${escapeHtml(tool.title || 'Untitled')}</h4>
+          <p>${escapeHtml(tool.desc || '')}</p>
+        </div>
+      `;
+      return a;
+    }
+
+    function renderTools(arr) {
+      container.innerHTML = '';
+      if (!arr || !arr.length) {
+        container.innerHTML = '<div class="empty muted">Aucun outil configuré — ajoutez un fichier <code>tools.json</code>.</div>';
+        return;
+      }
+      arr.forEach(t => container.appendChild(makeCard(t)));
+    }
+
+    // Chargement de tools.json si disponible, sinon fallback
+    fetch('tools.json', {cache: 'no-cache'})
+      .then(resp => {
+        if (!resp.ok) throw new Error('tools.json non trouvé');
+        return resp.json();
+      })
+      .then(data => {
+        if (!Array.isArray(data) || !data.length) throw new Error('tools.json vide ou invalide');
+        renderTools(data);
+      })
+      .catch(err => {
+        console.info('tools.json absent ou invalide, utilisation du fallback embarqué.', err);
+        renderTools(fallback);
+      });
+
+    window.__toolHub = { renderTools, fallback };
+  })();
+  </script>
+</body>
+</html>
