@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Convertisseur Touchstone — SxP → S2P</title>
+  <link rel="stylesheet" href="../style/sNp_converter.css">
+</head>
+<body>
+  <div class="page">
+
+    <header class="band header-band" role="banner">
+      <a id="btnHome" class="home-btn" href="../index.html">HUB</a>
+      <div class="container">
+        <div class="title-block">
+          <h1>Convertisseur Touchstone — SxP → S2P</h1>
+          <p class="lead">Colle ici un fichier Touchstone (.s2p/.s3p/.../.s7p). Sélectionne le nombre de ports du fichier d'entrée, puis choisis la paire de ports que tu veux extraire au format <code>.s2p</code>. Clique sur « Convertir » puis copie ou télécharge le résultat.</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- paramètres et input -->
+    <section class="band params-band" aria-label="Paramètres de conversion">
+      <div class="container">
+
+        <div class="params-row">
+          <div class="param">
+            <label for="inputType">Type du fichier d'entrée (nombre de ports)</label>
+            <select id="inputType" class="control" title="Sélectionne le format d'entrée">
+              <option value="s2p">.s2p (2 ports)</option>
+              <option value="s3p">.s3p (3 ports)</option>
+              <option value="s4p">.s4p (4 ports)</option>
+              <option value="s5p">.s5p (5 ports)</option>
+              <option value="s6p">.s6p (6 ports)</option>
+              <option value="s7p">.s7p (7 ports)</option>
+            </select>
+          </div>
+
+          <div class="param">
+            <label for="portPairSelect">Port de sortie (choisis la paire)</label>
+            <select id="portPairSelect" class="control" title="Sélectionne la paire de ports à extraire pour le .s2p">
+              <!-- options générées dynamiquement par JS en fonction du type d'entrée -->
+            </select>
+          </div>
+
+          <div class="param" style="align-self:flex-end">
+            <button id="btnParse" class="btn btn-primary" title="Analyser et convertir">Convertir</button>
+          </div>
+
+          <div class="param" style="align-self:flex-end">
+            <button id="btnClear" class="btn btn-ghost" title="Effacer tout">Effacer</button>
+          </div>
+
+          <div class="param status-param" aria-live="polite">
+            <div id="status">— prêt —</div>
+          </div>
+        </div>
+
+        <div class="input-stack two-column">
+          <div class="panel input-panel" aria-label="Zone d'entrée (colle ici)">
+            <div class="panel-title">Entrée (Colle ici ou glisse-dépose)</div>
+            <textarea id="inputLeft" class="fixed-box monospace-box" wrap="off" placeholder="Colle un fichier Touchstone (.s2p/.s3p/...)."></textarea>
+            <div class="small-muted">Tu peux aussi déposer un fichier via drag & drop (prévu dans le JS).</div>
+          </div>
+
+          <div class="panel preview-panel" aria-label="Aperçu et résultat">
+            <div class="panel-title">Aperçu & Résultat</div>
+
+            <div class="panel-sub">
+              <div id="previewBox" class="fixed-box table-box" tabindex="0" aria-live="polite">
+                <div class="empty small-muted">Aucun fichier analysé</div>
+              </div>
+            </div>
+
+            <div class="panel-sub small">
+              <div class="sub-title">Fichier .s2p généré</div>
+              <div id="outputBox" class="fixed-box table-box" tabindex="0" aria-live="polite">
+                <div class="empty small-muted">Aucun fichier converti</div>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button id="btnCopy" class="btn">Copier</button>
+                <button id="btnDownload" class="btn btn-primary">Télécharger .s2p</button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- zone info / aides rapides -->
+    <section class="band plot-band" aria-label="Aide & détails">
+      <div class="container">
+        <div class="panel">
+          <div class="panel-title">Aide rapide</div>
+          <div class="small-muted">Le convertisseur extrait la matrice S pour la paire de ports choisie et génère un fichier Touchstone 2-ports. Il supporte les formats S-parameters en notation mag/ang ou re/j (RI). Les commentaires et entêtes Touchstone sont conservés lorsque possible.</div>
+          <div class="small-muted">Si tu veux, je peux implémenter la détection automatique du format (S DB/MA/RI), la gestion des commentaires, et la conversion des degrés/radians.</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- scripts à venir -->
+  <script defer src="../javascript/converter_ui.js"></script>
+  <script defer src="../javascript/converter_core.js"></script>
+  <script defer src="../javascript/converter_export.js"></script>
+</body>
+</html>
