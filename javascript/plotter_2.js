@@ -264,7 +264,6 @@
     const yScaleEl = $id('yScaleSelect'); const yScale = yScaleEl ? safeNum(yScaleEl.value, 1) : 1;
 
     // header comment to state the conversion performed (helpful for consumers)
-    const unitComment = `# Units conversion: X_out = X_in * ${inputUnitMult} / ${xScale} ; Y_out = Y_in / ${yScale}`;
 
     // build CSV header (first non-comment line)
     const headerParts = [];
@@ -277,8 +276,6 @@
     }
 
     const lines = [];
-    // put comment first so apps (Excel) ignore it; then add header row
-    lines.push(unitComment);
     lines.push(headerParts.join(sep));
 
     // helper number regex (accepts floats and exponents)
@@ -435,4 +432,5 @@
   setStatus('Plotter (module 2) prêt', 1200);
 
 })();
+
 
