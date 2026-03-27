@@ -157,12 +157,12 @@
               type: 'linear',
               title: { display: !!xLabel, text: xLabel, color: '#000' },
               ticks: { color: '#000' },
-              grid: { color: 'rgba(0,0,0,0.06)' }
+              grid: { color: 'rgba(0, 0, 0, 0.2)' }
             },
             y: {
               title: { display: !!yLabel, text: yLabel, color: '#000' },
               ticks: { color: '#000' },
-              grid: { color: 'rgba(0,0,0,0.06)' }
+              grid: { color: 'rgba(0, 0, 0, 0.2)' }
             }
           }
         }
