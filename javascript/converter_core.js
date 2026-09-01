@@ -1,17 +1,20 @@
-/* converter_core.js — parser Touchstone multi-port (Keysight order by default)
-   - Default ordering = 'col' (Keysight / column-major)
-   - Supports arbitrary N (expects 2*N*N numeric tokens per record after freq)
-   - Handles continuation lines (indented)
-   - Exposed API:
-       window.ConverterCore.convertTouchstoneToS2P(text, nPorts, portA, portB, opts)
-     opts: {
-       ordering: 'col'|'row'|'auto'   // default 'col'
-       format: 'RI'|'MA'|'DB'         // optional override of detected format
-       returnBoth?: boolean           // if true returns matrices for both orders for diagnostics
-     }
+/* converter_core.js — parseur Touchstone multi-port (ordre Keysight / colonne par défaut)
+   API (window.ConverterCore ; aussi globalThis pour un test sous node) :
+     parseTouchstone(text, {nPorts?, ordering?:'col'|'row'|'auto', format?:'RI'|'MA'|'DB', returnBoth?})
+       -> { options, nPorts, format, ordering, rows:[{freqToken, freq, S[N][N]{re,im}}], headerComments, diagnostic }
+       nPorts absent : inféré (1..9) = premier N pour lequel chaque record a exactement 2N² valeurs
+       et les fréquences sont croissantes.
+     convertTouchstoneToS2P(text, nPorts, portA, portB, opts)
+       -> { s2pText, previewText, dataPoints, chosenOrdering, diagnostic }   (comportement historique)
+     freqUnitMultiplier(unit) -> 1 | 1e3 | 1e6 | 1e9 | 1e12
+     parseOptionsLine(line)   -> { freqUnit, dataType, format, R }
+   Utilisé par html/sNp_converter.html et html/plotter.html.
+   Lignes de continuation = lignes indentées (convention Keysight) ; les lignes '!' sont hissées en en-tête.
 */
 
 (function(){
+  'use strict';
+
   // --- Math / util ---
   function polarToRect(mag, deg) {
     const rad = deg * Math.PI / 180.0;
@@ -54,8 +57,7 @@
   }
 
   // --- Build NxN matrix from tokens according to ordering ---
-  // ordering === 'col' -> column-major (Keysight standard)
-  // ordering === 'row' -> row-major (non standard)
+  // ordering === 'col' -> column-major (Keysight standard) ; 'row' -> row-major
   function buildMatrixFromTokens(tokensAfterFreq, N, format, ordering='col') {
     const expected = 2 * N * N;
     if (tokensAfterFreq.length < expected) {
@@ -131,24 +133,13 @@
     return lines.join('\n');
   }
 
-  // --- Main conversion function ---
-  function convertTouchstoneToS2P(text, nPorts, portA, portB, opts) {
-    opts = opts || {};
-    const orderingPref = opts.ordering || 'col'; // default to Keysight 'col'
-    const overrideFormat = opts.format ? opts.format.toUpperCase() : null;
-    const returnBoth = !!opts.returnBoth;
-
-    if (!text || typeof text !== 'string') throw new Error('Aucune donnée fournie.');
-    const rawLines = text.split(/\r?\n/);
+  // --- Scan : assemble les records (freq + tokens) ; une ligne indentée est une continuation
+  //     tant que expectedPerRow n'est pas atteint. Lignes '!' hissées en commentaires d'en-tête.
+  function scanRecords(rawLines, expectedPerRow) {
     const headerComments = [];
     let options = null;
     const records = []; // {freqToken, tokensAfterFreq, rawStart, rawEnd}
-
-    // scan file and form records by concatenating continuation lines (indentation)
     let i = 0;
-    const N = Number.isFinite(nPorts) ? nPorts : 2;
-    const expectedPerRow = 2 * N * N;
-
     while (i < rawLines.length) {
       const rawLine = rawLines[i];
       if (!rawLine || rawLine.trim() === '') { i++; continue; }
@@ -170,14 +161,51 @@
           if (more.length) rest = rest.concat(more);
           j++;
           continue;
-        } else {
-          break;
         }
+        break;
       }
       records.push({ freqToken, tokensAfterFreq: rest, rawStart: i, rawEnd: j });
       i = j + 1;
     }
+    return { headerComments, options, records };
+  }
 
+  // --- Inférence du nombre de ports : premier N (1..9) tel que chaque record ait exactement 2N²
+  //     valeurs et que les fréquences soient croissantes (un mauvais N produit des records
+  //     incomplets, surnuméraires ou des "fréquences" qui sont en fait des valeurs S).
+  function inferPorts(rawLines) {
+    for (let n = 1; n <= 9; n++) {
+      const exp = 2 * n * n;
+      const s = scanRecords(rawLines, exp);
+      if (!s.records.length) continue;
+      let ok = s.records.every(r => r.tokensAfterFreq.length === exp);
+      for (let k = 1; ok && k < s.records.length; k++) {
+        if (!(Number(s.records[k].freqToken) >= Number(s.records[k-1].freqToken))) ok = false;
+      }
+      if (ok) return { nPorts: n, scan: s };
+    }
+    return null;
+  }
+
+  // --- Parse complet : texte -> matrices S par fréquence ---
+  function parseTouchstone(text, opts) {
+    opts = opts || {};
+    if (!text || typeof text !== 'string') throw new Error('Aucune donnée fournie.');
+    const rawLines = text.split(/\r?\n/);
+    const orderingPref = opts.ordering || 'col'; // default to Keysight 'col'
+    const overrideFormat = opts.format ? String(opts.format).toUpperCase() : null;
+
+    let N, scan;
+    if (Number.isFinite(opts.nPorts) && opts.nPorts > 0) {
+      N = opts.nPorts;
+      scan = scanRecords(rawLines, 2 * N * N);
+    } else {
+      const inf = inferPorts(rawLines);
+      if (!inf) throw new Error('Nombre de ports indéterminable (fichier Touchstone incomplet ou non standard).');
+      N = inf.nPorts; scan = inf.scan;
+    }
+    const { headerComments, options, records } = scan;
+    const expectedPerRow = 2 * N * N;
     if (records.length === 0) throw new Error('Aucun point de données détecté.');
 
     // determine input format (prefer header unless override)
@@ -211,19 +239,19 @@
       }
     }
 
-    // build rows using chosenOrdering
-    const rows = records.map(rec => {
-      const S = buildMatrixFromTokens(rec.tokensAfterFreq, N, inputFormat, chosenOrdering);
-      return { freqToken: rec.freqToken, S };
-    });
+    const rows = records.map(rec => ({
+      freqToken: rec.freqToken,
+      freq: Number(rec.freqToken),
+      S: buildMatrixFromTokens(rec.tokensAfterFreq, N, inputFormat, chosenOrdering)
+    }));
 
     // If returnBoth requested, build both column and row for first record (diagnostic)
-    let both = null;
-    if (returnBoth) {
+    let diagnostic = null;
+    if (opts.returnBoth) {
       try {
         const rec0 = records.find(r => r.tokensAfterFreq.length >= expectedPerRow);
         if (rec0) {
-          both = {
+          diagnostic = {
             col: buildMatrixFromTokens(rec0.tokensAfterFreq, N, inputFormat, 'col'),
             row: buildMatrixFromTokens(rec0.tokensAfterFreq, N, inputFormat, 'row')
           };
@@ -231,18 +259,37 @@
       } catch(e) { /* ignore */ }
     }
 
-    const s2pText = buildS2PText(headerComments, options, rows, portA, portB);
+    return { options, nPorts: N, format: inputFormat, ordering: chosenOrdering, rows, headerComments, diagnostic };
+  }
+
+  // --- Main conversion function (API historique du sNp Converter) ---
+  function convertTouchstoneToS2P(text, nPorts, portA, portB, opts) {
+    opts = opts || {};
+    const p = parseTouchstone(text, {
+      nPorts: Number.isFinite(nPorts) ? nPorts : 2,
+      ordering: opts.ordering,
+      format: opts.format,
+      returnBoth: !!opts.returnBoth
+    });
+    const s2pText = buildS2PText(p.headerComments, p.options, p.rows, portA, portB);
     return {
       s2pText,
-      previewText: `Ordering chosen: ${chosenOrdering} (requested: ${orderingPref}) — format: ${inputFormat} — points: ${rows.length}`,
-      dataPoints: rows.length,
-      chosenOrdering,
-      diagnostic: both
+      previewText: `Ordering chosen: ${p.ordering} (requested: ${opts.ordering || 'col'}) — format: ${p.format} — points: ${p.rows.length}`,
+      dataPoints: p.rows.length,
+      chosenOrdering: p.ordering,
+      diagnostic: p.diagnostic
     };
   }
 
-  // expose
-  window.ConverterCore = {
-    convertTouchstoneToS2P
+  const UNIT_MULT = { HZ: 1, KHZ: 1e3, MHZ: 1e6, GHZ: 1e9, THZ: 1e12 };
+  function freqUnitMultiplier(unit) { return UNIT_MULT[String(unit || 'HZ').toUpperCase()] || 1; }
+
+  // expose (window dans le navigateur, globalThis sous node pour le self-test du plotter)
+  const root = (typeof window !== 'undefined') ? window : globalThis;
+  root.ConverterCore = {
+    convertTouchstoneToS2P,
+    parseTouchstone,
+    freqUnitMultiplier,
+    parseOptionsLine
   };
 })();
